@@ -17,6 +17,19 @@ export default defineConfig([
     extends: ["js/recommended"],
   },
   tseslint.configs.recommended,
+  {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
   pluginReact.configs.flat.recommended,
   {
     files: ["**/*.{jsx,tsx}"],
