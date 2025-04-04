@@ -1,8 +1,9 @@
-import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@/components/theme-provider";
-import Fractal from "@/fractals/fractal";
 import Mandelbrot from "@/fractals/mandelbrot/mandelbrot";
+import useDrag from "./hooks/useDrag";
+import useZoom from "./hooks/useZoom";
+import { useDebounce } from "./hooks/useDebounce";
 
 const myFractal = new Mandelbrot();
 
@@ -27,84 +28,63 @@ function resizeCanvas(canvas: HTMLCanvasElement) {
 }
 
 export const Canvas = () => {
-  const fractalRef = useRef<Fractal>(myFractal);
+  const fractalRef = useRef<Mandelbrot>(myFractal);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [needsRecompute, setNeedsRecompute] = useState(true);
-  const { theme } = useTheme();
+  // const { theme } = useTheme();
 
   // Initial render, set canvas size to container size
   useEffect(() => {
     if (canvasRef.current) {
       resizeCanvas(canvasRef.current);
       fractalRef.current?.setCanvas(canvasRef.current);
+      fractalRef.current?.render();
     }
   }, []);
 
-  // Recompute graphics when needed
-  useEffect(() => {
-    console.log("Checking if needs recompute");
-    if (needsRecompute) {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      setNeedsRecompute(false);
-      requestAnimationFrame(() => {
+  const handleResize = () => {
+    if (canvasRef.current) {
+      const didResize = resizeCanvas(canvasRef.current);
+      if (didResize) {
         fractalRef.current?.render();
-      });
+      }
     }
-  }, [needsRecompute]);
+  };
 
   // handle resizing the window
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handleResize = () => {
-      const isResized = resizeCanvas(canvas);
-      setNeedsRecompute(isResized);
-    };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [theme]);
+  }, []);
 
-  // Handle dragging
-  const startPos = useRef<{ x: number; y: number } | null>(null);
+  // useEffect(() => {
+  //   const canvas = canvasRef.current;
+  //   if (!canvas) return;
+  //   const handleResize = () => {
+  //     const isResized = resizeCanvas(canvas);
+  //     if (isResized) {
+  //       fractalRef.current?.render();
+  //     }
+  //   };
 
-  // Handle dragging
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    startPos.current = { x: e.clientX, y: e.clientY };
+  //   window.addEventListener("resize", handleResize);
+  //   return () => window.removeEventListener("resize", handleResize);
+  // }, []);
 
-    if (canvasRef.current) {
-      fractalRef.current?.startMove();
-    }
+  // Add drag hook
+  const handlePointerDown = useDrag(({ x, y }, z) => {
+    fractalRef.current?.transform({ x, y }, z);
+  });
 
-    const handlePointerMove = (e: PointerEvent) => {
-      if (startPos.current && canvasRef.current) {
-        const dpr = window.devicePixelRatio;
-        const dx = (e.clientX - startPos.current.x) * dpr;
-        const dy = (e.clientY - startPos.current.y) * dpr;
-        fractalRef.current?.move({ x: dx, y: dy });
-      }
-    };
-
-    const handlePointerUp = () => {
-      console.log("Pointer up");
-      startPos.current = null;
-      document.removeEventListener("pointermove", handlePointerMove);
-      document.removeEventListener("pointerup", handlePointerUp);
-      if (canvasRef.current) {
-        fractalRef.current?.stopMove();
-      }
-      setNeedsRecompute(true);
-    };
-    document.addEventListener("pointermove", handlePointerMove);
-    document.addEventListener("pointerup", handlePointerUp);
-  };
+  const [handleWheel, handleTouchStart] = useZoom((center, delta) => {
+    fractalRef.current?.transform(center, delta);
+  });
 
   return (
     <canvas
       ref={canvasRef}
       onPointerDown={handlePointerDown}
+      // onTouchStart={handleTouchStart}
+      onWheel={handleWheel}
       width="100%"
       height="100%"
       className="block h-full w-full"

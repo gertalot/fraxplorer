@@ -3,9 +3,14 @@ interface Fractal {
   setCenter: (center: { x: number; y: number }) => void;
   ui: () => void;
   render: () => void;
-  startMove: () => void;
-  move: (offset: { x: number; y: number; zoom?: number }) => void;
-  stopMove: () => void;
+
+  startTransform: () => void;
+  transform: (params: {
+    deltaX?: number;
+    deltaY?: number;
+    scale?: number;
+  }) => void;
+  stopTransform: () => void;
 }
 
 export default Fractal;
