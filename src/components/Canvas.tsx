@@ -13,14 +13,14 @@ function canvasSize(canvas: HTMLCanvasElement | null) {
   return { width: 0, height: 0 };
 }
 
-function distanceBetweenTouches(touches: React.Touch[]) {
-  if (touches.length !== 2) return 0;
-  const touch1 = touches[0];
-  const touch2 = touches[1];
-  const dx = touch1.clientX - touch2.clientX;
-  const dy = touch1.clientY - touch2.clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
+// function distanceBetweenTouches(touches: React.Touch[]) {
+//   if (touches.length !== 2) return 0;
+//   const touch1 = touches[0];
+//   const touch2 = touches[1];
+//   const dx = touch1.clientX - touch2.clientX;
+//   const dy = touch1.clientY - touch2.clientY;
+//   return Math.sqrt(dx * dx + dy * dy);
+// }
 
 interface CanvasProps {
   fractal: Fractal<FractalParameters>;
@@ -142,31 +142,19 @@ export const Canvas = ({ fractal }: CanvasProps) => {
     setIsDragging(false);
   };
 
-  const screenToFractal = (screenX: number, screenY: number) => {
-    const aspectRatio = canvasDimensions.width / canvasDimensions.height;
-    const fractalWidth = 2 / params.zoom;
-    const fractalHeight = fractalWidth / aspectRatio;
-
-    return {
-      x:
-        params.center.x +
-        (screenX / canvasDimensions.width - 0.5) * fractalWidth,
-      y:
-        params.center.y -
-        (screenY / canvasDimensions.height - 0.5) * fractalHeight,
-    };
-  };
-
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault();
 
     // Calculate zoom factor based on wheel delta
     const zoomFactor = event.deltaY < 0 ? 1.05 : 0.95;
-    const newZoom = params.zoom * zoomFactor;
+    const newZoom = Math.max(params.zoom * zoomFactor, 1);
+
+    const newMaxIterations = Math.floor(250 * Math.log10(newZoom + 1) * 2);
 
     setParams((prev) => ({
       ...prev,
       zoom: newZoom,
+      maxIterations: newMaxIterations,
     }));
   };
 

@@ -1,5 +1,55 @@
 import { Fractal, FractalParameters } from "../fractal";
 
+const getColor = (iter: number, maxIter: number): [number, number, number] => {
+  if (iter === maxIter) {
+    return [0, 0, 0]; // Black for points in the set
+  }
+
+  // Smooth color gradient with sinusoidal variation
+  const t = iter / maxIter;
+  const hue = 360 * t;
+  const saturation = 100;
+  const lightness = 50 * (0.5 + 0.5 * Math.sin(t * 10));
+
+  // Convert HSL to RGB
+  const c = ((1 - Math.abs((2 * lightness) / 100 - 1)) * saturation) / 100;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = lightness / 100 - c / 2;
+
+  let r, g, b;
+  if (hue < 60) {
+    r = c;
+    g = x;
+    b = 0;
+  } else if (hue < 120) {
+    r = x;
+    g = c;
+    b = 0;
+  } else if (hue < 180) {
+    r = 0;
+    g = c;
+    b = x;
+  } else if (hue < 240) {
+    r = 0;
+    g = x;
+    b = c;
+  } else if (hue < 300) {
+    r = x;
+    g = 0;
+    b = c;
+  } else {
+    r = c;
+    g = 0;
+    b = x;
+  }
+
+  return [
+    Math.round((r + m) * 255),
+    Math.round((g + m) * 255),
+    Math.round((b + m) * 255),
+  ];
+};
+
 class Mandelbrot implements Fractal<FractalParameters> {
   parameters: FractalParameters;
 
@@ -117,12 +167,13 @@ class Mandelbrot implements Fractal<FractalParameters> {
         }
 
         // Compute color based on number of iterations
-        const color = iter === this.parameters.maxIterations ? 0 : iter * 4;
+        // const color = iter === this.parameters.maxIterations ? 0 : iter * 4;
+        const [r, g, b] = getColor(iter, this.parameters.maxIterations);
         const pixelIndex = (y * width + x) * 4;
 
-        data[pixelIndex] = color;
-        data[pixelIndex + 1] = color;
-        data[pixelIndex + 2] = color;
+        data[pixelIndex] = r;
+        data[pixelIndex + 1] = g;
+        data[pixelIndex + 2] = b;
         data[pixelIndex + 3] = 255;
       }
     }
