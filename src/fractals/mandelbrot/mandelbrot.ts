@@ -1,3 +1,115 @@
+import { Fractal, FractalParameters } from "../fractal";
+
+class Mandelbrot implements Fractal<FractalParameters> {
+  parameters: FractalParameters;
+
+  // store the last image data so we can quickly preview
+  private lastImageData: ImageData | null = null;
+
+  constructor() {
+    console.log("Mandelbrot constructor");
+    this.parameters = this.defaultParameters();
+  }
+
+  defaultParameters(): FractalParameters {
+    return {
+      maxIterations: 250,
+      zoom: 1.0,
+      center: { x: -1.0, y: 0 },
+    };
+  }
+
+  preview(canvas: HTMLCanvasElement) {
+    console.log("preview", this.parameters, {
+      width: canvas.width,
+      height: canvas.height,
+    });
+
+    if (this.lastImageData) {
+      console.log("previewing last stored image");
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Create temporary canvas to hold the image data
+      const tmpCanvas = document.createElement("canvas");
+      tmpCanvas.width = this.lastImageData.width;
+      tmpCanvas.height = this.lastImageData.height;
+      const tmpCtx = tmpCanvas.getContext("2d");
+      if (!tmpCtx) return;
+      tmpCtx.putImageData(this.lastImageData, 0, 0);
+
+      // Calculate scale factors to preserve aspect ratio
+      const scale = canvas.height / this.lastImageData.height;
+
+      // Calculate the position to keep the image centered
+      const imageWidth = this.lastImageData.width * scale;
+      const imageHeight = this.lastImageData.height * scale;
+      const offsetX = (canvas.width - imageWidth) / 2;
+      const offsetY = (canvas.height - imageHeight) / 2;
+
+      // Clear the canvas and draw the scaled image
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      ctx.drawImage(tmpCanvas, 0, 0);
+      ctx.restore();
+    } else {
+      console.log("no last image data available");
+    }
+  }
+
+  render(canvas: HTMLCanvasElement) {
+    console.log("render", this.parameters, {
+      width: canvas.width,
+      height: canvas.height,
+    });
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const width = canvas.width;
+    const height = canvas.height;
+    const imageData = ctx.createImageData(width, height);
+    const data = imageData.data;
+
+    const scale = 4.0 / this.parameters.zoom;
+
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        // Convert pixel coordinate to complex number
+        const real =
+          this.parameters.center.x + ((x - width / 2) * scale) / height;
+        const imag =
+          this.parameters.center.y + ((y - height / 2) * scale) / height;
+
+        let zr = 0;
+        let zi = 0;
+        let iter = 0;
+
+        while (zr * zr + zi * zi < 4 && iter < this.parameters.maxIterations) {
+          const newZr = zr * zr - zi * zi + real;
+          zi = 2 * zr * zi + imag;
+          zr = newZr;
+          iter++;
+        }
+
+        // Compute color based on number of iterations
+        const color = iter === this.parameters.maxIterations ? 0 : iter * 4;
+        const pixelIndex = (y * width + x) * 4;
+
+        data[pixelIndex] = color;
+        data[pixelIndex + 1] = color;
+        data[pixelIndex + 2] = color;
+        data[pixelIndex + 3] = 255;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    this.lastImageData = imageData;
+  }
+}
+
+/*
 class Mandelbrot {
   canvas: HTMLCanvasElement | null = null;
 
@@ -234,5 +346,5 @@ class Mandelbrot {
     console.log("rendered mandelbrot done");
   }
 }
-
+*/
 export default Mandelbrot;

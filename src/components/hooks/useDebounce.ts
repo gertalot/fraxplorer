@@ -8,6 +8,7 @@ export const useDebounce = <T extends (...args: unknown[]) => unknown>(
   // Use ref to store the timeout ID
   const timeoutRef = useRef<number | null>(null);
 
+  console.log("useDebounce called");
   // Return a memoized version of the debounced function
   return useCallback(
     (...args: Parameters<T>) => {

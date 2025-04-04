@@ -1,90 +1,134 @@
+"use client";
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "@/components/theme-provider";
-import Mandelbrot from "@/fractals/mandelbrot/mandelbrot";
-import useDrag from "./hooks/useDrag";
-import useZoom from "./hooks/useZoom";
-import { useDebounce } from "./hooks/useDebounce";
+import { FractalParameters, Fractal } from "../fractals/fractal";
 
-const myFractal = new Mandelbrot();
+const RERENDER_TIMEOUT_MS = 1000;
 
-function resizeCanvas(canvas: HTMLCanvasElement) {
-  // Lookup the size the browser is displaying the canvas in CSS pixels.
-  const dpr = window.devicePixelRatio;
-  const { width, height } = canvas.getBoundingClientRect();
-  const displayWidth = Math.round(width * dpr);
-  const displayHeight = Math.round(height * dpr);
-
-  // Check if the canvas is not the same size.
-  const needResize =
-    canvas.width !== displayWidth || canvas.height !== displayHeight;
-
-  if (needResize) {
-    // Make the canvas the same size
-    canvas.width = displayWidth;
-    canvas.height = displayHeight;
+function canvasSize(canvas: HTMLCanvasElement | null) {
+  if (canvas) {
+    const dpr = window.devicePixelRatio;
+    const { width, height } = canvas.getBoundingClientRect();
+    return { width: width * dpr, height: height * dpr };
   }
-
-  return needResize;
+  return { width: 0, height: 0 };
 }
 
-export const Canvas = () => {
-  const fractalRef = useRef<Mandelbrot>(myFractal);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  // const { theme } = useTheme();
+interface CanvasProps {
+  fractal: Fractal<FractalParameters>;
+}
 
-  // Initial render, set canvas size to container size
+export const Canvas = ({ fractal }: CanvasProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasDimensions, setCanvasDimensions] = useState<{
+    width: number;
+    height: number;
+  }>({ width: 0, height: 0 });
+  const [params, setParams] = useState<FractalParameters>(fractal.parameters);
+
+  /**
+   * On Initial render, set canvas dimensions to container size
+   */
   useEffect(() => {
-    if (canvasRef.current) {
-      resizeCanvas(canvasRef.current);
-      fractalRef.current?.setCanvas(canvasRef.current);
-      fractalRef.current?.render();
-    }
+    const updateCanvasSize = () => {
+      setCanvasDimensions(canvasSize(canvasRef.current));
+    };
+
+    updateCanvasSize();
+    window.addEventListener("resize", updateCanvasSize);
+    return () => window.removeEventListener("resize", updateCanvasSize);
   }, []);
 
-  const handleResize = () => {
-    if (canvasRef.current) {
-      const didResize = resizeCanvas(canvasRef.current);
-      if (didResize) {
-        fractalRef.current?.render();
-      }
+  /**
+   * Update canvas size and fractal parameters, and trigger a re-render
+   * with debouncing
+   */
+
+  // timeout to debounce events before (expensive) re-rendering
+  const renderTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Update canvas when parameters or canvas size change
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // set canvas size to container pixel size
+    const { width, height } = canvasDimensions;
+    canvas.width = width;
+    canvas.height = height;
+
+    // set fractal parameters
+    fractal.parameters = { ...params };
+
+    // immediately render fractal preview
+    if (canvas.width === 0 || canvas.height === 0) {
+      console.log("Canvas size is 0, not rendering");
+    } else {
+      fractal.preview(canvas);
     }
+
+    // debounce mechanism: ensure some time has passed before re-rendering
+    if (renderTimeoutRef.current) {
+      clearTimeout(renderTimeoutRef.current);
+    }
+    renderTimeoutRef.current = setTimeout(() => {
+      fractal.render(canvas);
+    }, RERENDER_TIMEOUT_MS);
+    return () => {
+      if (renderTimeoutRef.current) {
+        clearTimeout(renderTimeoutRef.current);
+      }
+    };
+  }, [fractal, params, canvasDimensions]);
+
+  /**
+   * Handle user interactions
+   */
+
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastPosition, setLastPosition] = useState({ x: 0, y: 0 });
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    setIsDragging(true);
+    setLastPosition({ x: event.clientX, y: event.clientY });
   };
 
-  // handle resizing the window
-  useEffect(() => {
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!isDragging) return;
 
-  // useEffect(() => {
-  //   const canvas = canvasRef.current;
-  //   if (!canvas) return;
-  //   const handleResize = () => {
-  //     const isResized = resizeCanvas(canvas);
-  //     if (isResized) {
-  //       fractalRef.current?.render();
-  //     }
-  //   };
+    const delta = {
+      x: event.clientX - lastPosition.x,
+      y: event.clientY - lastPosition.y,
+    };
+    // Calculate new center based on drag distance and zoom level
+    const newCenter = {
+      x:
+        params.center.x -
+        (delta.x / canvasDimensions.width) * (2 / params.zoom),
+      y:
+        params.center.y +
+        (delta.y / canvasDimensions.height) * (2 / params.zoom),
+    };
 
-  //   window.addEventListener("resize", handleResize);
-  //   return () => window.removeEventListener("resize", handleResize);
-  // }, []);
+    setParams((prev) => ({
+      ...prev,
+      center: newCenter,
+    }));
+    setLastPosition({ x: event.clientX, y: event.clientY });
+  };
 
-  // Add drag hook
-  const handlePointerDown = useDrag(({ x, y }, z) => {
-    fractalRef.current?.transform({ x, y }, z);
-  });
-
-  const [handleWheel, handleTouchStart] = useZoom((center, delta) => {
-    fractalRef.current?.transform(center, delta);
-  });
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   return (
     <canvas
       ref={canvasRef}
       onPointerDown={handlePointerDown}
-      // onTouchStart={handleTouchStart}
-      onWheel={handleWheel}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handleMouseUp}
+      onPointerLeave={handleMouseUp}
       width="100%"
       height="100%"
       className="block h-full w-full"

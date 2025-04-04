@@ -1,16 +1,16 @@
-interface Fractal {
-  setCanvas: (canvas: HTMLCanvasElement) => void;
-  setCenter: (center: { x: number; y: number }) => void;
-  ui: () => void;
-  render: () => void;
-
-  startTransform: () => void;
-  transform: (params: {
-    deltaX?: number;
-    deltaY?: number;
-    scale?: number;
-  }) => void;
-  stopTransform: () => void;
+interface FractalParameters {
+  maxIterations: number;
+  zoom: number;
+  center: { x: number; y: number };
 }
 
+interface Fractal<TParameters extends FractalParameters> {
+  parameters: TParameters;
+
+  defaultParameters: () => TParameters;
+  preview: (canvas: HTMLCanvasElement) => void;
+  render: (canvas: HTMLCanvasElement) => void;
+}
+
+export type { FractalParameters, Fractal };
 export default Fractal;
