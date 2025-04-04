@@ -6,6 +6,11 @@ class Mandelbrot implements Fractal<FractalParameters> {
   // store the last image data so we can quickly preview
   private lastImageData: ImageData | null = null;
 
+  // store last fractal center for previews
+  private lastCenter: { x: number; y: number } | null = null;
+
+  private lastZoom: number | null = null;
+
   constructor() {
     console.log("Mandelbrot constructor");
     this.parameters = this.defaultParameters();
@@ -20,16 +25,19 @@ class Mandelbrot implements Fractal<FractalParameters> {
   }
 
   preview(canvas: HTMLCanvasElement) {
-    console.log("preview", this.parameters, {
-      width: canvas.width,
-      height: canvas.height,
-    });
+    console.log("preview", this.parameters.center, this.parameters.zoom);
 
     if (this.lastImageData) {
-      console.log("previewing last stored image");
-
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+
+      // keep track of the center of the fractal, for dragging
+      if (!this.lastCenter) {
+        this.lastCenter = {
+          x: this.parameters.center.x,
+          y: this.parameters.center.y,
+        };
+      }
 
       // Create temporary canvas to hold the image data
       const tmpCanvas = document.createElement("canvas");
@@ -39,24 +47,34 @@ class Mandelbrot implements Fractal<FractalParameters> {
       if (!tmpCtx) return;
       tmpCtx.putImageData(this.lastImageData, 0, 0);
 
-      // Calculate scale factors to preserve aspect ratio
-      const scale = canvas.height / this.lastImageData.height;
+      const zoomRatio = this.parameters.zoom / (this.lastZoom || 1);
+      const baseScale = canvas.height / this.lastImageData.height;
+      const previewScale = baseScale * zoomRatio;
 
-      // Calculate the position to keep the image centered
-      const imageWidth = this.lastImageData.width * scale;
-      const imageHeight = this.lastImageData.height * scale;
-      const offsetX = (canvas.width - imageWidth) / 2;
-      const offsetY = (canvas.height - imageHeight) / 2;
+      const renderScale = 4.0 / this.parameters.zoom;
+
+      const offsetX =
+        (canvas.width - this.lastImageData.width * previewScale) / 2;
+      const offsetY =
+        (canvas.height - this.lastImageData.height * previewScale) / 2;
+
+      // calculate offset in pixels based on center offset
+      const centerOffsetX =
+        (this.parameters.center.x - this.lastCenter.x) *
+        (canvas.height / renderScale);
+      const centerOffsetY =
+        (this.parameters.center.y - this.lastCenter.y) *
+        (canvas.height / renderScale);
 
       // Clear the canvas and draw the scaled image
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
-      ctx.translate(offsetX, offsetY);
-      ctx.scale(scale, scale);
+      ctx.translate(offsetX - centerOffsetX, offsetY - centerOffsetY);
+      ctx.scale(previewScale, previewScale);
       ctx.drawImage(tmpCanvas, 0, 0);
       ctx.restore();
     } else {
-      console.log("no last image data available");
+      console.log("no preview image data available");
     }
   }
 
@@ -65,6 +83,10 @@ class Mandelbrot implements Fractal<FractalParameters> {
       width: canvas.width,
       height: canvas.height,
     });
+
+    // first reset some preview parameters
+    this.lastCenter = null;
+    this.lastZoom = null;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -106,6 +128,7 @@ class Mandelbrot implements Fractal<FractalParameters> {
     }
     ctx.putImageData(imageData, 0, 0);
     this.lastImageData = imageData;
+    this.lastZoom = this.parameters.zoom;
   }
 }
 

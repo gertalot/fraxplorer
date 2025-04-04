@@ -13,16 +13,36 @@ function canvasSize(canvas: HTMLCanvasElement | null) {
   return { width: 0, height: 0 };
 }
 
+function distanceBetweenTouches(touches: React.Touch[]) {
+  if (touches.length !== 2) return 0;
+  const touch1 = touches[0];
+  const touch2 = touches[1];
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 interface CanvasProps {
   fractal: Fractal<FractalParameters>;
 }
 
+/**
+ * A React component that renders a fractal visualization on an HTML canvas.
+ * Handles user interactions like dragging to pan the view and supports dynamic resizing.
+ * The component props expect a Fractal object for previewing and rendering.
+ *
+ * @param {Object} props - Component props
+ * @param {Fractal<FractalParameters>} props.fractal - The fractal object to render
+ * @returns {JSX.Element} A canvas element that displays the fractal
+ */
 export const Canvas = ({ fractal }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // keep track of changing dimensions so the canvas can be updated on render
   const [canvasDimensions, setCanvasDimensions] = useState<{
     width: number;
     height: number;
   }>({ width: 0, height: 0 });
+  // keep track of changing fractal parameters
   const [params, setParams] = useState<FractalParameters>(fractal.parameters);
 
   /**
@@ -87,39 +107,67 @@ export const Canvas = ({ fractal }: CanvasProps) => {
    */
 
   const [isDragging, setIsDragging] = useState(false);
-  const [lastPosition, setLastPosition] = useState({ x: 0, y: 0 });
+  const [lastDragPosition, setLastDragPosition] = useState({ x: 0, y: 0 });
 
+  // Handle dragging
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
-    setLastPosition({ x: event.clientX, y: event.clientY });
+    setLastDragPosition({ x: event.clientX, y: event.clientY });
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDragging) return;
 
+    const dpr = window.devicePixelRatio;
     const delta = {
-      x: event.clientX - lastPosition.x,
-      y: event.clientY - lastPosition.y,
+      x: (event.clientX - lastDragPosition.x) * dpr,
+      y: (event.clientY - lastDragPosition.y) * dpr,
     };
+
     // Calculate new center based on drag distance and zoom level
+    const scale = 4.0 / params.zoom;
     const newCenter = {
-      x:
-        params.center.x -
-        (delta.x / canvasDimensions.width) * (2 / params.zoom),
-      y:
-        params.center.y +
-        (delta.y / canvasDimensions.height) * (2 / params.zoom),
+      x: params.center.x - (delta.x * scale) / canvasDimensions.height,
+      y: params.center.y - (delta.y * scale) / canvasDimensions.height,
     };
 
     setParams((prev) => ({
       ...prev,
       center: newCenter,
     }));
-    setLastPosition({ x: event.clientX, y: event.clientY });
+    setLastDragPosition({ x: event.clientX, y: event.clientY });
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  const screenToFractal = (screenX: number, screenY: number) => {
+    const aspectRatio = canvasDimensions.width / canvasDimensions.height;
+    const fractalWidth = 2 / params.zoom;
+    const fractalHeight = fractalWidth / aspectRatio;
+
+    return {
+      x:
+        params.center.x +
+        (screenX / canvasDimensions.width - 0.5) * fractalWidth,
+      y:
+        params.center.y -
+        (screenY / canvasDimensions.height - 0.5) * fractalHeight,
+    };
+  };
+
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+
+    // Calculate zoom factor based on wheel delta
+    const zoomFactor = event.deltaY < 0 ? 1.05 : 0.95;
+    const newZoom = params.zoom * zoomFactor;
+
+    setParams((prev) => ({
+      ...prev,
+      zoom: newZoom,
+    }));
   };
 
   return (
@@ -129,9 +177,11 @@ export const Canvas = ({ fractal }: CanvasProps) => {
       onPointerMove={handlePointerMove}
       onPointerUp={handleMouseUp}
       onPointerLeave={handleMouseUp}
+      onWheel={handleWheel}
       width="100%"
       height="100%"
       className="block h-full w-full"
+      style={{ touchAction: "none" }}
     />
   );
 };
