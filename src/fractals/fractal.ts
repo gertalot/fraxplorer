@@ -2,6 +2,7 @@ interface FractalParameters {
   maxIterations: number;
   zoom: number;
   center: { x: number; y: number };
+  colorScheme: string | null;
 }
 
 interface Fractal<TParameters extends FractalParameters> {

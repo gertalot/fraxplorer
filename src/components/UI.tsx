@@ -6,8 +6,14 @@ import {
 
 import { useState } from "react";
 import { UITrigger } from "./UITrigger";
+import { ColorSchemeDropDownMenu } from "./ColorSchemeDropDownMenu";
 
-const UI = () => {
+interface UIProps {
+  colorScheme: string | null;
+  onSchemeChange: (scheme: string) => void;
+}
+
+const UI = ({ colorScheme, onSchemeChange }: UIProps) => {
   const [isOpened, setIsOpened] = useState(false);
 
   return (
@@ -19,9 +25,12 @@ const UI = () => {
         {/* Your popover content goes here */}
         <div className="grid gap-4">
           <div className="space-y-2">
-            <h4 className="font-medium leading-none">Popover content</h4>
+            <h4 className="font-medium leading-none">Color Scheme</h4>
             <p className="text-sm text-muted-foreground">
-              Add your UI controls here
+              <ColorSchemeDropDownMenu
+                selectedScheme={colorScheme}
+                onSchemeChange={onSchemeChange}
+              />
             </p>
           </div>
         </div>

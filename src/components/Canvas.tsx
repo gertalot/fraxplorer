@@ -24,6 +24,7 @@ function canvasSize(canvas: HTMLCanvasElement | null) {
 
 interface CanvasProps {
   fractal: Fractal<FractalParameters>;
+  colorScheme: string | null;
 }
 
 /**
@@ -35,7 +36,7 @@ interface CanvasProps {
  * @param {Fractal<FractalParameters>} props.fractal - The fractal object to render
  * @returns {JSX.Element} A canvas element that displays the fractal
  */
-export const Canvas = ({ fractal }: CanvasProps) => {
+export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // keep track of changing dimensions so the canvas can be updated on render
   const [canvasDimensions, setCanvasDimensions] = useState<{
@@ -57,6 +58,20 @@ export const Canvas = ({ fractal }: CanvasProps) => {
     window.addEventListener("resize", updateCanvasSize);
     return () => window.removeEventListener("resize", updateCanvasSize);
   }, []);
+
+  /**
+   * Update when color scheme changes
+   */
+  useEffect(() => {
+    console.log("Updating color scheme", colorScheme);
+    // Update fractal parameters when color scheme changes
+    setParams((prev) => ({ ...prev, colorScheme: colorScheme }));
+    fractal.parameters.colorScheme = colorScheme;
+    // Trigger re-render
+    // if (canvasRef.current) {
+    //   fractal.render(canvasRef.current);
+    // }
+  }, [colorScheme]);
 
   /**
    * Update canvas size and fractal parameters, and trigger a re-render
