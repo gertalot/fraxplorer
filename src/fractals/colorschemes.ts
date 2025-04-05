@@ -60,15 +60,6 @@ const firePalette: ColorSchemeFn = (iter, maxIterations) => {
   }
 };
 
-const smoothRainbow: ColorSchemeFn = (iter, maxIterations) => {
-  if (iter === maxIterations) return [0, 0, 0];
-
-  // Smooth coloring formula
-  const smoothed = iter + 1 - Math.log(Math.log(Math.sqrt(iter))) / Math.log(2);
-  const hue = (smoothed * 10) % 360;
-  return hslToRgb(hue, 0.7, 0.5);
-};
-
 const electricPlasma: ColorSchemeFn = (iter, maxIterations) => {
   if (iter === maxIterations) return [0, 0, 0];
 
@@ -100,17 +91,6 @@ const psychedelicSwirl: ColorSchemeFn = (iter, maxIterations) => {
   const lightness = 0.5;
 
   return hslToRgb(hue, saturation, lightness);
-};
-
-const vintageSepia: ColorSchemeFn = (iter, maxIterations) => {
-  if (iter === maxIterations) return [0, 0, 0];
-
-  const ratio = iter / maxIterations;
-  const r = Math.round(112 + ratio * 143);
-  const g = Math.round(66 + ratio * 89);
-  const b = Math.round(20 + ratio * 65);
-
-  return [r, g, b];
 };
 
 const neonNights: ColorSchemeFn = (iter, maxIterations) => {
@@ -145,7 +125,7 @@ const cosmicDust: ColorSchemeFn = (iter, maxIterations) => {
   return hslToRgb(hue, saturation, lightness);
 };
 
-const binaryContrast: ColorSchemeFn = (iter, maxIterations) => {
+const primaryContrast: ColorSchemeFn = (iter, maxIterations) => {
   if (iter === maxIterations) return [0, 0, 0];
 
   // Create a high contrast pattern with only a few colors
@@ -555,7 +535,7 @@ export const abyssalGradient: ColorSchemeFn = (iter, maxIterations) => {
   // Add occasional distant "stars"
   const starChance =
     Math.sin(ratio * 100) * Math.cos(ratio * 63) * Math.sin(ratio * 42);
-  if (starChance > 0.99) {
+  if (starChance > 0.9) {
     r = Math.min(255, r + 150);
     g = Math.min(255, g + 150);
     b = Math.min(255, b + 150);
@@ -601,20 +581,19 @@ export const mandelbrotIlluminated: ColorSchemeFn = (iter, maxIterations) => {
 };
 
 const colorSchemes: Record<string, ColorSchemeFn> = {
+  "Fire Palette": firePalette,
+  "Hyperbolic Tessellation": hyperbolicTessellation,
+  "Monochrome Gradient": monochromeGradient,
   "Classic Blue/Yellow": classicBlueYellow,
-  Fire: firePalette,
-  "Smooth Rainbow": smoothRainbow,
   "Electric Plasma": electricPlasma,
   "Ocean Depths": oceanDepths,
   "Psychedelic Swirl": psychedelicSwirl,
-  "Vintage Sepia": vintageSepia,
   "Neon Nights": neonNights,
   "Pastel Dream": pastelDream,
   "Cosmic Dust": cosmicDust,
-  "Binary Contrast": binaryContrast,
+  "Primary Contrast": primaryContrast,
   "Twilight Gradient": twilightGradient,
   "Emerald City": emeraldCity,
-  "Monochrome Gradient": monochromeGradient,
   "Sunset Glow": sunsetGlow,
   "Celestial Nebula": celestialNebula,
   "Aurora Borealis": auroraBorealis,
@@ -628,7 +607,6 @@ const colorSchemes: Record<string, ColorSchemeFn> = {
   "Fractal Iridescence": fractalIridescence,
   "Quantum Entanglement": quantumEntanglement,
   "Frozen Crystalline": frozenCrystalline,
-  "Hyperbolic Tessellation": hyperbolicTessellation,
   "Abyssal Gradient": abyssalGradient,
   "Mandelbrot Illuminated": mandelbrotIlluminated,
 };

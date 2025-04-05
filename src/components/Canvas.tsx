@@ -13,15 +13,6 @@ function canvasSize(canvas: HTMLCanvasElement | null) {
   return { width: 0, height: 0 };
 }
 
-// function distanceBetweenTouches(touches: React.Touch[]) {
-//   if (touches.length !== 2) return 0;
-//   const touch1 = touches[0];
-//   const touch2 = touches[1];
-//   const dx = touch1.clientX - touch2.clientX;
-//   const dy = touch1.clientY - touch2.clientY;
-//   return Math.sqrt(dx * dx + dy * dy);
-// }
-
 interface CanvasProps {
   fractal: Fractal<FractalParameters>;
   colorScheme: string | null;
@@ -67,10 +58,6 @@ export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
     // Update fractal parameters when color scheme changes
     setParams((prev) => ({ ...prev, colorScheme: colorScheme }));
     fractal.parameters.colorScheme = colorScheme;
-    // Trigger re-render
-    // if (canvasRef.current) {
-    //   fractal.render(canvasRef.current);
-    // }
   }, [colorScheme]);
 
   /**
