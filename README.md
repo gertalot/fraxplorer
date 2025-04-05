@@ -1,54 +1,55 @@
-# React + TypeScript + Vite
+# Fraxplorer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a personal project to explore various strategies for AI-assisted coding, and making something beautiful
+while doing so.
 
-Currently, two official plugins are available:
+I'm using AI to help with advanced refactoring, boilerplate, creating UI components, and taking a stab at implementing
+features. It's not great at some of these things. Of the models I've tried, only v0 can actually come up with
+decent code for fairly complex tasks.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+When I was growing up, I was so fascinated by the beauty of Fractals... I wrote my first program
+to display the Mandelbrot set on an Apple II+ in AppleSoft BASIC. It took days to complete a monochrome 280x192
+pixel image but it was glorious.
 
-## Expanding the ESLint configuration
+This project recreates some of that magic and lets me explore the Mandelbrot set in a web browser, with much better
+graphics and performance. :smile:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Running the project
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-});
+```
+yarn install
+yarn dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Then open http://localhost:5173/ and enjoy. I'm currently not ready to publish this anywhere yet, so dev mode is all
+I'm using for now.
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+## Usage
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    "react-x": reactX,
-    "react-dom": reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs["recommended-typescript"].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-});
-```
+the UI is pretty simple... When you move the pointer, a little icon shows up in the lower-left corner of the screen.
+This will contain parameters such as zoom level, center, and max iterations, but for now it just contains a dropdown
+menu to select the color scheme you want to use. Other than that, you can drag and use the scroll wheel to move
+and zoom in/out.
+
+## Stack
+
+This project uses Yarn, Vite, TypeScript, and React.
+
+## So how is AI assisted coding?
+
+Some models are worse than others. Most of them are alright for very specific (simple-ish)
+tasks, but make an awful mess if you're not careful.
+
+You still need to know what you're doing, and understand how to construct software. You need to learn how to ask for
+what you want in a specific unambiguous way.
+
+Frequently it comes up with proposed solutions that are just plain wrong. If you call it out on its sloppy work, ask it
+to be more thorough and analyse the problem step by step, it will sometimes come up with a better answer. It gets
+pretty frustrating to first ask a question, then ask it to give a better answer. It tends to apologise and promise
+to be more thorough right off the bat for future questions, but it doesn't really do that anyway.
+
+It tends to be keen to add code and complexity and doesn't really know how to keep things as clean and elegant as
+possible. It isn't great at restructuring code to follow best practices.
+
+I've been using Claude 3.5 and 3.7 Sonnet, ChatGPT 4o, and v0. The most impressive at understanding my code and
+being actually helpful is definitely v0.
