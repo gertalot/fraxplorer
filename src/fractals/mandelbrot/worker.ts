@@ -28,17 +28,24 @@ interface RenderChunkMessage {
 // @ts-expect-error DedicatedWorkerGlobalScope is only defined in workers
 declare const self: DedicatedWorkerGlobalScope;
 
-const electricPlasma = (iter: number, maxIterations: number) => {
+const firePalette = (iter: number, maxIterations: number) => {
   if (iter === maxIterations) return [0, 0, 0];
 
   const ratio = iter / maxIterations;
-  const r = Math.sin(ratio * Math.PI * 2) * 127 + 128;
-  const g = Math.sin(ratio * Math.PI * 2 + Math.PI / 2) * 127 + 128;
-  const b = Math.sin(ratio * Math.PI * 2 + Math.PI) * 127 + 128;
-
-  return [Math.round(r), Math.round(g), Math.round(b)];
+  // From black to red to yellow to white
+  if (ratio < 0.2) {
+    const r = Math.round(ratio * 5 * 255);
+    return [r, 0, 0];
+  } else if (ratio < 0.5) {
+    const g = Math.round((ratio - 0.2) * 3.33 * 255);
+    return [255, g, 0];
+  } else {
+    const b = Math.round((ratio - 0.5) * 2 * 255);
+    const r = 255;
+    const g = 255;
+    return [r, g, b];
+  }
 };
-
 // Handle messages from the main thread
 self.onmessage = (event: MessageEvent) => {
   const data = event.data;
@@ -111,7 +118,7 @@ function renderChunk(
       // and let the main thread apply colors
 
       // Compute color based on number of iterations
-      const [r, g, b] = electricPlasma(iter, maxIterations);
+      const [r, g, b] = firePalette(iter, maxIterations);
       const pixelIndex = (y * width + x) * 4;
 
       buffer[pixelIndex] = r;

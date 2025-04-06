@@ -9,12 +9,18 @@ const myFractal = new Mandelbrot();
 
 function App() {
   const [colorScheme, setColorScheme] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+
+  myFractal.onProgress((progress: number) => {
+    console.log(`Progress: ${progress * 100}%`);
+    setProgress(progress);
+  });
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="fraxplorer-ui-theme">
       <div className="h-screen w-screen">
         <Canvas fractal={myFractal} colorScheme={colorScheme} />
-        <UI colorScheme={colorScheme} onSchemeChange={setColorScheme} />
+        <UI colorScheme={colorScheme} onSchemeChange={setColorScheme} progress={progress} />
       </div>
     </ThemeProvider>
   );
