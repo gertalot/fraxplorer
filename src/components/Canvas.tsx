@@ -80,8 +80,20 @@ export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
     canvas.width = width;
     canvas.height = height;
 
+    // const newMaxIterations = Math.floor(250 + 1000 * Math.log10(newZoom + 1));
+    // console.log("New max iterations", newMaxIterations);
+
+    // setParams((prev) => ({
+    //   ...prev,
+    //   zoom: newZoom,
+    //   maxIterations: newMaxIterations,
+    // }));
+
     // set fractal parameters
-    fractal.parameters = { ...params };
+    fractal.parameters = {
+      ...params,
+      maxIterations: Math.floor(250 + 1000 * Math.log10(params.zoom + 1)),
+    };
 
     // immediately render fractal preview
     if (canvas.width === 0 || canvas.height === 0) {
@@ -151,12 +163,13 @@ export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
     const zoomFactor = event.deltaY < 0 ? 1.05 : 0.95;
     const newZoom = Math.max(params.zoom * zoomFactor, 1);
 
-    const newMaxIterations = Math.floor(250 * Math.log10(newZoom + 1) * 2);
+    // const newMaxIterations = Math.floor(250 + 1000 * Math.log10(newZoom + 1));
+    // console.log("New max iterations", newMaxIterations);
 
     setParams((prev) => ({
       ...prev,
       zoom: newZoom,
-      maxIterations: newMaxIterations,
+      // maxIterations: newMaxIterations,
     }));
   };
 

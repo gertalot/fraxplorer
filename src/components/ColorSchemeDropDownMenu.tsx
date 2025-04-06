@@ -14,10 +14,7 @@ interface ColorSchemeDropDownMenuProps {
   onSchemeChange: (scheme: string) => void;
 }
 
-export const ColorSchemeDropDownMenu = ({
-  selectedScheme,
-  onSchemeChange,
-}: ColorSchemeDropDownMenuProps) => {
+export const ColorSchemeDropDownMenu = ({ selectedScheme, onSchemeChange }: ColorSchemeDropDownMenuProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

@@ -10,7 +10,7 @@ const canvasToFractalPoint = (
   canvasHeight: number,
   point: { x: number; y: number },
   fractalCenter: { x: number; y: number },
-  fractalZoom: number,
+  fractalZoom: number
 ) => {
   const scale = 4.0 / fractalZoom;
 
@@ -25,7 +25,7 @@ const fractalToCanvasPoint = (
   canvasHeight: number,
   point: { x: number; y: number },
   fractalCenter: { x: number; y: number },
-  fractalZoom: number,
+  fractalZoom: number
 ) => {
   const scale = 4.0 / fractalZoom;
 

@@ -1,4 +1,4 @@
-import colorSchemes from "../colorschemes";
+import { WorkerPool } from "@/lib/workerpool";
 import { Fractal, FractalParameters } from "../fractal";
 
 interface RenderChunk {
@@ -7,6 +7,31 @@ interface RenderChunk {
   width: number;
   height: number;
 }
+
+// Define message types for worker communication
+interface RenderChunkMessage {
+  type: "renderChunk";
+  chunk: RenderChunk;
+  parameters: FractalParameters;
+  canvasWidth: number;
+  canvasHeight: number;
+  chunkIndex: number;
+}
+
+interface ChunkCompleteMessage {
+  type: "chunkComplete";
+  buffer: Uint8ClampedArray;
+  chunk: RenderChunk;
+  chunkIndex: number;
+}
+
+// interface InitMessage {
+//   type: "init"
+//   colorSchemes: typeof colorSchemes
+// }
+
+// type WorkerMessage = RenderChunkMessage | InitMessage
+type WorkerResponse = ChunkCompleteMessage;
 
 class Mandelbrot implements Fractal<FractalParameters> {
   // parameters that define the fractal
@@ -17,8 +42,45 @@ class Mandelbrot implements Fractal<FractalParameters> {
   private lastCenter: { x: number; y: number } | null = null;
   private lastZoom: number | null = null;
 
+  // Rendering state
+  private renderingInProgress = false;
+  private renderingContext: CanvasRenderingContext2D | null = null;
+  private renderingCanvas: HTMLCanvasElement | null = null;
+  private renderingProgress = 0;
+  private onProgressCallback: ((progress: number) => void) | null = null;
+  private onCompleteCallback: (() => void) | null = null;
+  private chunksTotal = 0;
+  private chunksCompleted = 0;
+
+  // Worker pool for parallel rendering
+  private workerPool: WorkerPool | null = null;
+  private workerInitialized = false;
+
   constructor() {
     this.parameters = this.defaultParameters();
+    this.initWorkerPool();
+  }
+
+  // Initialize the worker pool
+  private async initWorkerPool(): Promise<void> {
+    if (this.workerPool) return;
+
+    // Create the worker pool
+    this.workerPool = new WorkerPool({
+      workerScript: new URL("./worker.ts", import.meta.url).href,
+      // maxWorkers: 1,
+      onError: (error) => {
+        console.error("Worker error:", error);
+      },
+    });
+
+    // Wait for workers to initialize
+    await this.workerPool.waitForInit();
+
+    this.workerInitialized = true;
+    console.log(
+      `Initialized ${this.workerPool.getWorkerCount()} worker${this.workerPool.getWorkerCount() === 1 ? "" : "s"}`
+    );
   }
 
   defaultParameters(): FractalParameters {
@@ -63,19 +125,13 @@ class Mandelbrot implements Fractal<FractalParameters> {
 
       // offset when canvas is resized; this keeps the center of the last
       // image in the center of the canvas
-      const offsetX =
-        (canvas.width - this.lastImageData.width * previewScale) / 2;
-      const offsetY =
-        (canvas.height - this.lastImageData.height * previewScale) / 2;
+      const offsetX = (canvas.width - this.lastImageData.width * previewScale) / 2;
+      const offsetY = (canvas.height - this.lastImageData.height * previewScale) / 2;
 
       // when the user drags the canvas, the center of the fractal changes;
       // calculate the pixel offset for this new center
-      const centerOffsetX =
-        (this.parameters.center.x - this.lastCenter.x) *
-        (canvas.height / renderScale);
-      const centerOffsetY =
-        (this.parameters.center.y - this.lastCenter.y) *
-        (canvas.height / renderScale);
+      const centerOffsetX = (this.parameters.center.x - this.lastCenter.x) * (canvas.height / renderScale);
+      const centerOffsetY = (this.parameters.center.y - this.lastCenter.y) * (canvas.height / renderScale);
 
       // Clear the canvas and draw the scaled image
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -93,14 +149,6 @@ class Mandelbrot implements Fractal<FractalParameters> {
    * Chunked rendering
    */
 
-  // Rendering state
-  private renderingInProgress = false;
-  private renderingContext: CanvasRenderingContext2D | null = null;
-  private renderingCanvas: HTMLCanvasElement | null = null;
-  private renderingProgress = 0;
-  private onProgressCallback: ((progress: number) => void) | null = null;
-  private onCompleteCallback: (() => void) | null = null;
-
   //Set a callback to be called when rendering progress updates
   onProgress(callback: (progress: number) => void): void {
     this.onProgressCallback = callback;
@@ -116,46 +164,145 @@ class Mandelbrot implements Fractal<FractalParameters> {
     this.renderingInProgress = false;
   }
 
-  // Initiate chunked rendering process
-  render(canvas: HTMLCanvasElement): void {
+  async render(canvas: HTMLCanvasElement): Promise<void> {
     console.log("render", this.parameters, {
       width: canvas.width,
       height: canvas.height,
     });
 
+    // Make sure workers are initialized
+    if (!this.workerInitialized) {
+      await this.initWorkerPool();
+    }
+
     // Cancel any ongoing rendering
     this.cancelRendering();
-
-    // Reset preview parameters
-    this.lastCenter = null;
-    this.lastZoom = null;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Store rendering context for use in the chunked rendering process
+    // Store rendering context for use in the rendering process
     this.renderingContext = ctx;
     this.renderingCanvas = canvas;
     this.renderingInProgress = true;
     this.renderingProgress = 0;
-
-    // Create a new image data for the entire canvas
-    const width = canvas.width;
-    const height = canvas.height;
-    // const imageData = ctx.createImageData(width, height);
-
-    let imageData: ImageData;
-    try {
-      imageData = ctx.getImageData(0, 0, width, height);
-    } catch (_e) {
-      imageData = ctx.createImageData(width, height);
-    }
+    this.chunksCompleted = 0;
 
     // Create chunks for processing
-    const chunks = this.createChunks(width, height);
+    const chunks = this.createChunks(canvas.width, canvas.height);
+    this.chunksTotal = chunks.length;
 
-    // Start the chunked rendering process
-    this.processChunks(chunks, 0, imageData);
+    console.log(`Rendering ${chunks.length} chunks`);
+
+    // Store the current center and zoom for future previews
+    this.lastCenter = {
+      x: this.parameters.center.x,
+      y: this.parameters.center.y,
+    };
+    this.lastZoom = this.parameters.zoom;
+
+    // Process chunks using web workers
+    await this.processChunksWithWorkers(chunks);
+  }
+
+  // Process chunks using web workers
+  private async processChunksWithWorkers(chunks: RenderChunk[]): Promise<void> {
+    if (!this.workerPool || !this.renderingCanvas || !this.renderingContext) {
+      console.error("No worker pool. canvas, or rendering context");
+      return;
+    }
+
+    // Create a promise that resolves when all chunks are processed
+    const renderPromise = new Promise<void>((resolve) => {
+      // Create an array to track which chunks have been processed
+      const processedChunks = new Array(chunks.length).fill(false);
+
+      // Process each chunk in parallel
+      chunks.forEach((chunk, index) => {
+        // Skip if rendering was cancelled
+        if (!this.renderingInProgress) {
+          return;
+        }
+
+        // Send the chunk to a worker
+        this.workerPool!.execute<RenderChunkMessage, WorkerResponse>({
+          type: "renderChunk",
+          chunk,
+          parameters: this.parameters,
+          canvasWidth: this.renderingCanvas!.width,
+          canvasHeight: this.renderingCanvas!.height,
+          chunkIndex: index,
+        })
+          .then((result) => {
+            // Skip if rendering was cancelled
+            if (!this.renderingInProgress) {
+              return;
+            }
+
+            // console.log("Chunk result:", result);
+
+            // Get the chunk data from the result
+            const { buffer, chunk: renderedChunk, chunkIndex } = result;
+
+            // Create a new ImageData from the buffer
+            const chunkImageData = new ImageData(
+              new Uint8ClampedArray(buffer),
+              renderedChunk.width,
+              renderedChunk.height
+            );
+
+            // Put the chunk data into the main image data
+            this.renderingContext!.putImageData(chunkImageData, renderedChunk.startX, renderedChunk.startY);
+
+            // Mark the chunk as processed
+            processedChunks[chunkIndex] = true;
+            this.chunksCompleted++;
+
+            // Update progress
+            this.renderingProgress = this.chunksCompleted / this.chunksTotal;
+            if (this.onProgressCallback) {
+              this.onProgressCallback(this.renderingProgress);
+            }
+
+            // Check if all chunks are processed
+            if (processedChunks.every((processed) => processed)) {
+              // Save the completed image data
+              this.lastImageData = this.renderingContext!.getImageData(
+                0,
+                0,
+                this.renderingCanvas!.width,
+                this.renderingCanvas!.height
+              );
+
+              // Mark rendering as complete
+              this.renderingInProgress = false;
+
+              // Call the complete callback
+              if (this.onCompleteCallback) {
+                this.onCompleteCallback();
+              }
+
+              // Resolve the promise
+              resolve();
+            }
+          })
+          .catch((error) => {
+            console.error("Error rendering chunk:", error);
+
+            // Mark the chunk as processed even if it failed
+            processedChunks[index] = true;
+            this.chunksCompleted++;
+
+            // Check if all chunks are processed
+            if (processedChunks.every((processed) => processed)) {
+              resolve();
+            }
+          });
+      });
+    });
+
+    // Wait for all chunks to be processed
+    await renderPromise;
   }
 
   private createChunks(width: number, height: number): RenderChunk[] {
@@ -195,59 +342,28 @@ class Mandelbrot implements Fractal<FractalParameters> {
     };
 
     // Start with a center chunk
-    addChunkIfValid(
-      centerX - chunkSize / 2,
-      centerY - chunkSize / 2,
-      chunkSize,
-      chunkSize,
-    );
+    addChunkIfValid(centerX - chunkSize / 2, centerY - chunkSize / 2, chunkSize, chunkSize);
 
     // Add chunks in expanding spiral
     let layer = 1;
     while (layer * chunkSize < Math.max(width, height)) {
       // Top row of this layer
-      for (
-        let x = centerX - layer * chunkSize;
-        x < centerX + layer * chunkSize;
-        x += chunkSize
-      ) {
+      for (let x = centerX - layer * chunkSize; x < centerX + layer * chunkSize; x += chunkSize) {
         addChunkIfValid(x, centerY - layer * chunkSize, chunkSize, chunkSize);
       }
 
       // Right column of this layer
-      for (
-        let y = centerY - layer * chunkSize + chunkSize;
-        y < centerY + layer * chunkSize;
-        y += chunkSize
-      ) {
-        addChunkIfValid(
-          centerX + layer * chunkSize - chunkSize,
-          y,
-          chunkSize,
-          chunkSize,
-        );
+      for (let y = centerY - layer * chunkSize + chunkSize; y < centerY + layer * chunkSize; y += chunkSize) {
+        addChunkIfValid(centerX + layer * chunkSize - chunkSize, y, chunkSize, chunkSize);
       }
 
       // Bottom row of this layer
-      for (
-        let x = centerX + layer * chunkSize - 2 * chunkSize;
-        x >= centerX - layer * chunkSize;
-        x -= chunkSize
-      ) {
-        addChunkIfValid(
-          x,
-          centerY + layer * chunkSize - chunkSize,
-          chunkSize,
-          chunkSize,
-        );
+      for (let x = centerX + layer * chunkSize - 2 * chunkSize; x >= centerX - layer * chunkSize; x -= chunkSize) {
+        addChunkIfValid(x, centerY + layer * chunkSize - chunkSize, chunkSize, chunkSize);
       }
 
       // Left column of this layer
-      for (
-        let y = centerY + layer * chunkSize - 2 * chunkSize;
-        y > centerY - layer * chunkSize;
-        y -= chunkSize
-      ) {
+      for (let y = centerY + layer * chunkSize - 2 * chunkSize; y > centerY - layer * chunkSize; y -= chunkSize) {
         addChunkIfValid(centerX - layer * chunkSize, y, chunkSize, chunkSize);
       }
 
@@ -270,105 +386,6 @@ class Mandelbrot implements Fractal<FractalParameters> {
     chunkSize = Math.max(20, Math.min(500, chunkSize));
 
     return chunkSize;
-  }
-
-  private processChunks(
-    chunks: RenderChunk[],
-    index: number,
-    imageData: ImageData,
-  ): void {
-    // Check if we should continue rendering
-    if (
-      !this.renderingInProgress ||
-      !this.renderingContext ||
-      !this.renderingCanvas
-    ) {
-      this.lastImageData = imageData;
-      this.lastZoom = this.parameters.zoom;
-
-      return;
-    }
-
-    // Check if we've processed all chunks
-    if (index >= chunks.length) {
-      // Rendering is complete
-      this.renderingInProgress = false;
-      this.lastImageData = imageData;
-      this.lastZoom = this.parameters.zoom;
-
-      // Call the complete callback if provided
-      if (this.onCompleteCallback) {
-        this.onCompleteCallback();
-      }
-      return;
-    }
-
-    // Process the current chunk
-    const chunk = chunks[index];
-    this.renderChunk(chunk, imageData);
-
-    // Update the canvas with our progress so far
-    this.renderingContext.putImageData(imageData, 0, 0);
-
-    // Update progress
-    this.renderingProgress = (index + 1) / chunks.length;
-    if (this.onProgressCallback) {
-      this.onProgressCallback(this.renderingProgress);
-    }
-
-    // Schedule the next chunk
-    requestAnimationFrame(() => {
-      this.processChunks(chunks, index + 1, imageData);
-    });
-  }
-
-  private renderChunk(chunk: RenderChunk, imageData: ImageData): void {
-    if (!this.renderingCanvas) return;
-
-    const { startX, startY, width, height } = chunk;
-    const canvasWidth = this.renderingCanvas.width;
-    const canvasHeight = this.renderingCanvas.height;
-    const data = imageData.data;
-
-    const selectedColorScheme =
-      this.parameters.colorScheme || Object.keys(colorSchemes)[0];
-    const getColor = colorSchemes[selectedColorScheme];
-
-    const scale = 4.0 / this.parameters.zoom;
-
-    // Process each pixel in the chunk
-    for (let x = startX; x < startX + width; x++) {
-      for (let y = startY; y < startY + height; y++) {
-        // Convert pixel coordinate to complex number
-        const real =
-          this.parameters.center.x +
-          ((x - canvasWidth / 2) * scale) / canvasHeight;
-        const imag =
-          this.parameters.center.y +
-          ((y - canvasHeight / 2) * scale) / canvasHeight;
-
-        // Calculate Mandelbrot set iteration count
-        let zr = 0;
-        let zi = 0;
-        let iter = 0;
-
-        while (zr * zr + zi * zi < 4 && iter < this.parameters.maxIterations) {
-          const newZr = zr * zr - zi * zi + real;
-          zi = 2 * zr * zi + imag;
-          zr = newZr;
-          iter++;
-        }
-
-        // Compute color based on number of iterations
-        const [r, g, b] = getColor(iter, this.parameters.maxIterations);
-        const pixelIndex = (y * canvasWidth + x) * 4;
-
-        data[pixelIndex] = r;
-        data[pixelIndex + 1] = g;
-        data[pixelIndex + 2] = b;
-        data[pixelIndex + 3] = 255;
-      }
-    }
   }
 }
 

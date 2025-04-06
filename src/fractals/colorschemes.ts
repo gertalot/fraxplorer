@@ -381,8 +381,7 @@ export const midnightOasis: ColorSchemeFn = (iter, maxIterations) => {
   let b = Math.round(50 + ratio * 100);
 
   // Add "stars" and oasis highlights
-  const starPattern =
-    Math.sin(ratio * 100) * Math.sin(ratio * 50) * Math.sin(ratio * 25);
+  const starPattern = Math.sin(ratio * 100) * Math.sin(ratio * 50) * Math.sin(ratio * 25);
   if (starPattern > 0.9) {
     r = Math.min(255, r + 200);
     g = Math.min(255, g + 200);
@@ -447,8 +446,7 @@ export const frozenCrystalline: ColorSchemeFn = (iter, maxIterations) => {
   b = 255;
 
   // Add crystalline patterns
-  const pattern =
-    Math.sin(ratio * 30) * Math.cos(ratio * 20) * Math.sin(ratio * 10);
+  const pattern = Math.sin(ratio * 30) * Math.cos(ratio * 20) * Math.sin(ratio * 10);
   if (pattern > 0.7) {
     // Add deep blue accents
     r = Math.round(r * 0.7);
@@ -533,8 +531,7 @@ export const abyssalGradient: ColorSchemeFn = (iter, maxIterations) => {
   }
 
   // Add occasional distant "stars"
-  const starChance =
-    Math.sin(ratio * 100) * Math.cos(ratio * 63) * Math.sin(ratio * 42);
+  const starChance = Math.sin(ratio * 100) * Math.cos(ratio * 63) * Math.sin(ratio * 42);
   if (starChance > 0.9) {
     r = Math.min(255, r + 150);
     g = Math.min(255, g + 150);

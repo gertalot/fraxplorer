@@ -1,8 +1,4 @@
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { useState } from "react";
 import { UITrigger } from "./UITrigger";
@@ -27,10 +23,7 @@ const UI = ({ colorScheme, onSchemeChange }: UIProps) => {
           <div className="space-y-2">
             <h4 className="font-medium leading-none">Color Scheme</h4>
             <p className="text-sm text-muted-foreground">
-              <ColorSchemeDropDownMenu
-                selectedScheme={colorScheme}
-                onSchemeChange={onSchemeChange}
-              />
+              <ColorSchemeDropDownMenu selectedScheme={colorScheme} onSchemeChange={onSchemeChange} />
             </p>
           </div>
         </div>
