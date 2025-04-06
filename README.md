@@ -53,3 +53,20 @@ possible. It isn't great at restructuring code to follow best practices.
 
 I've been using Claude 3.5 and 3.7 Sonnet, ChatGPT 4o, and v0. The most impressive at understanding my code and being
 actually helpful is definitely v0.
+
+### Some examples of AI interactions.
+
+An example of using DeepSeek: At some point I wanted to create a progress indicator. I have a callback that receives a
+number between 0 and 1, and I wanted a UI component to display an indication of progress. I'm using chadcn components,
+but the AI gave me a component that used tailwind plugins and required DaisyUI. When I said the component didn't display
+properly, it gave me a solution that didn't use tailwind but created an SVG instead. I then pointed out that I'm using
+chadcn (which it should have seen because the code it was looking at already uses chadcn components), and it gave me
+generic instructions on installing chadcn. At that point I just looked up the chadcn docs and implemented it myself.
+
+V0 is much better at understanding what I want. I gave it my mandelbrot.ts code, which had a render method that rendered
+the mandelbrot fractal on a canvas. First I asked it to help me render the fractal in chunks, rather than the whole
+canvas at once. This provides more immediate visual feedback, and allows for user interaction during the rendering
+process. It did a pretty good job of doing this, although I had to tweak a few very small things to make it work.
+
+I then asked it to help me move the computation to web workers. It got me about 98% there, although it did omit a
+crucial part of the solution: when the main thread received completed chunks from the workers, it just discarded them.
