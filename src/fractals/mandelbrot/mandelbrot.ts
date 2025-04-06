@@ -162,6 +162,9 @@ class Mandelbrot implements Fractal<FractalParameters> {
   // Cancel the current rendering process
   cancelRendering(): void {
     this.renderingInProgress = false;
+    if (this.onProgressCallback) {
+      this.onProgressCallback(0);
+    }
   }
 
   async render(canvas: HTMLCanvasElement): Promise<void> {
@@ -253,6 +256,14 @@ class Mandelbrot implements Fractal<FractalParameters> {
 
             // Put the chunk data into the main image data
             this.renderingContext!.putImageData(chunkImageData, renderedChunk.startX, renderedChunk.startY);
+
+            // just messing around - trying to set the lastImageData after every completed chunk
+            this.lastImageData = this.renderingContext!.getImageData(
+              0,
+              0,
+              this.renderingCanvas!.width,
+              this.renderingCanvas!.height
+            );
 
             // Mark the chunk as processed
             processedChunks[chunkIndex] = true;
