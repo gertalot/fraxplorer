@@ -1,5 +1,7 @@
 import { WorkerPool } from "@/lib/workerpool";
 import { Fractal, FractalParameters } from "../fractal";
+import colorSchemes from "../colorschemes";
+import { ColorSchemeFn } from "../colorschemes";
 
 interface RenderChunk {
   startX: number;
@@ -20,7 +22,7 @@ interface RenderChunkMessage {
 
 interface ChunkCompleteMessage {
   type: "chunkComplete";
-  buffer: Uint8ClampedArray;
+  buffer: Uint32Array;
   chunk: RenderChunk;
   chunkIndex: number;
 }
@@ -55,6 +57,11 @@ class Mandelbrot implements Fractal<FractalParameters> {
   // Worker pool for parallel rendering
   private workerPool: WorkerPool | null = null;
   private workerInitialized = false;
+
+  // Store iteration data for the entire canvas
+  private fullCanvasIterationData: Uint32Array | null = null;
+  private canvasWidth = 0;
+  private canvasHeight = 0;
 
   constructor() {
     this.parameters = this.defaultParameters();
@@ -173,6 +180,13 @@ class Mandelbrot implements Fractal<FractalParameters> {
       height: canvas.height,
     });
 
+    let getColorFn;
+    if (this.parameters.colorScheme && colorSchemes[this.parameters.colorScheme]) {
+      getColorFn = colorSchemes[this.parameters.colorScheme];
+    } else {
+      getColorFn = colorSchemes[Object.keys(colorSchemes)[0]];
+    }
+
     // Make sure workers are initialized
     if (!this.workerInitialized) {
       await this.initWorkerPool();
@@ -191,6 +205,13 @@ class Mandelbrot implements Fractal<FractalParameters> {
     this.renderingProgress = 0;
     this.chunksCompleted = 0;
 
+    // Store canvas dimensions
+    this.canvasWidth = canvas.width;
+    this.canvasHeight = canvas.height;
+
+    // Initialize the full canvas iteration data array
+    this.fullCanvasIterationData = new Uint32Array(canvas.width * canvas.height);
+
     // Create chunks for processing
     const chunks = this.createChunks(canvas.width, canvas.height);
     this.chunksTotal = chunks.length;
@@ -205,11 +226,11 @@ class Mandelbrot implements Fractal<FractalParameters> {
     this.lastZoom = this.parameters.zoom;
 
     // Process chunks using web workers
-    await this.processChunksWithWorkers(chunks);
+    await this.processChunksWithWorkers(chunks, getColorFn);
   }
 
   // Process chunks using web workers
-  private async processChunksWithWorkers(chunks: RenderChunk[]): Promise<void> {
+  private async processChunksWithWorkers(chunks: RenderChunk[], getColorFn: ColorSchemeFn): Promise<void> {
     if (!this.workerPool || !this.renderingCanvas || !this.renderingContext) {
       console.error("No worker pool. canvas, or rendering context");
       return;
@@ -247,12 +268,24 @@ class Mandelbrot implements Fractal<FractalParameters> {
             // Get the chunk data from the result
             const { buffer, chunk: renderedChunk, chunkIndex } = result;
 
+            // Store the iteration data in the full canvas array
+            this.storeChunkIterationData(buffer, renderedChunk);
+
+            // Convert the iteration data to RGBA data we can use on the canvas
+            const iterationData = buffer;
+            const rgbaData = new Uint8ClampedArray(iterationData.length * 4);
+
+            for (let i = 0; i < iterationData.length; i++) {
+              const [r, g, b] = getColorFn(iterationData[i], this.parameters.maxIterations);
+              const pixelIndex = i * 4;
+              rgbaData[pixelIndex] = r;
+              rgbaData[pixelIndex + 1] = g;
+              rgbaData[pixelIndex + 2] = b;
+              rgbaData[pixelIndex + 3] = 255;
+            }
+
             // Create a new ImageData from the buffer
-            const chunkImageData = new ImageData(
-              new Uint8ClampedArray(buffer),
-              renderedChunk.width,
-              renderedChunk.height
-            );
+            const chunkImageData = new ImageData(rgbaData, renderedChunk.width, renderedChunk.height);
 
             // Put the chunk data into the main image data
             this.renderingContext!.putImageData(chunkImageData, renderedChunk.startX, renderedChunk.startY);
@@ -314,6 +347,74 @@ class Mandelbrot implements Fractal<FractalParameters> {
 
     // Wait for all chunks to be processed
     await renderPromise;
+  }
+
+  /**
+   * Store a chunk's iteration data in the full canvas array
+   */
+  private storeChunkIterationData(chunkData: Uint32Array, chunk: RenderChunk): void {
+    if (!this.fullCanvasIterationData) return;
+
+    const { startX, startY, width, height } = chunk;
+
+    // Copy each row of the chunk data to the correct position in the full canvas array
+    for (let y = 0; y < height; y++) {
+      const canvasRowOffset = (startY + y) * this.canvasWidth + startX;
+      const chunkRowOffset = y * width;
+
+      // Copy this row from chunk data to full canvas data
+      for (let x = 0; x < width; x++) {
+        this.fullCanvasIterationData[canvasRowOffset + x] = chunkData[chunkRowOffset + x];
+      }
+    }
+  }
+
+  /**
+   * Apply a new color scheme to the existing iteration data
+   */
+  public applyColorScheme(colorScheme: string | null, canvas: HTMLCanvasElement | null): boolean {
+    // Make sure we have iteration data and a valid canvas
+    if (!this.fullCanvasIterationData || !canvas) {
+      return false;
+    }
+
+    // Get the color function for the specified scheme
+    let getColorFn;
+    if (colorScheme && colorSchemes[colorScheme]) {
+      getColorFn = colorSchemes[colorScheme];
+    } else {
+      return false;
+    }
+
+    // Update the current color scheme
+    this.parameters.colorScheme = colorScheme;
+
+    // Get the canvas context
+    if (!canvas) return false;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+
+    // Create RGBA data for the entire canvas
+    const rgbaData = new Uint8ClampedArray(this.canvasWidth * this.canvasHeight * 4);
+
+    // Apply the color function to each pixel
+    for (let i = 0; i < this.fullCanvasIterationData.length; i++) {
+      const [r, g, b] = getColorFn(this.fullCanvasIterationData[i], this.parameters.maxIterations);
+      const pixelIndex = i * 4;
+      rgbaData[pixelIndex] = r;
+      rgbaData[pixelIndex + 1] = g;
+      rgbaData[pixelIndex + 2] = b;
+      rgbaData[pixelIndex + 3] = 255;
+    }
+
+    // Create a new ImageData and put it on the canvas
+    const imageData = new ImageData(rgbaData, this.canvasWidth, this.canvasHeight);
+    ctx.putImageData(imageData, 0, 0);
+
+    // Update the last image data
+    this.lastImageData = imageData;
+
+    return true;
   }
 
   private createChunks(width: number, height: number): RenderChunk[] {
@@ -397,6 +498,25 @@ class Mandelbrot implements Fractal<FractalParameters> {
     chunkSize = Math.max(20, Math.min(500, chunkSize));
 
     return chunkSize;
+  }
+
+  private getColor(iter: number, maxIterations: number) {
+    if (iter === maxIterations) return [0, 0, 0];
+
+    const ratio = iter / maxIterations;
+    // From black to red to yellow to white
+    if (ratio < 0.2) {
+      const r = Math.round(ratio * 5 * 255);
+      return [r, 0, 0];
+    } else if (ratio < 0.5) {
+      const g = Math.round((ratio - 0.2) * 3.33 * 255);
+      return [255, g, 0];
+    } else {
+      const b = Math.round((ratio - 0.5) * 2 * 255);
+      const r = 255;
+      const g = 255;
+      return [r, g, b];
+    }
   }
 }
 

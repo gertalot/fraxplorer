@@ -41,6 +41,7 @@ interface Fractal<TParameters extends FractalParameters> {
   defaultParameters: () => TParameters;
   preview: (canvas: HTMLCanvasElement) => void;
   render: (canvas: HTMLCanvasElement) => void;
+  applyColorScheme: (colorScheme: string | null, canvas: HTMLCanvasElement | null) => boolean;
 }
 
 export type { FractalParameters, Fractal };

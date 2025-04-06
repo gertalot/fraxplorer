@@ -609,3 +609,4 @@ const colorSchemes: Record<string, ColorSchemeFn> = {
 };
 
 export default colorSchemes;
+export type { ColorSchemeFn };

@@ -28,24 +28,6 @@ interface RenderChunkMessage {
 // @ts-expect-error DedicatedWorkerGlobalScope is only defined in workers
 declare const self: DedicatedWorkerGlobalScope;
 
-const firePalette = (iter: number, maxIterations: number) => {
-  if (iter === maxIterations) return [0, 0, 0];
-
-  const ratio = iter / maxIterations;
-  // From black to red to yellow to white
-  if (ratio < 0.2) {
-    const r = Math.round(ratio * 5 * 255);
-    return [r, 0, 0];
-  } else if (ratio < 0.5) {
-    const g = Math.round((ratio - 0.2) * 3.33 * 255);
-    return [255, g, 0];
-  } else {
-    const b = Math.round((ratio - 0.5) * 2 * 255);
-    const r = 255;
-    const g = 255;
-    return [r, g, b];
-  }
-};
 // Handle messages from the main thread
 self.onmessage = (event: MessageEvent) => {
   const data = event.data;
@@ -55,7 +37,7 @@ self.onmessage = (event: MessageEvent) => {
     const { chunk, parameters, canvasWidth, canvasHeight, chunkIndex, taskId } = data as RenderChunkMessage;
 
     // Create a buffer to hold the pixel data for this chunk
-    const buffer = new Uint8ClampedArray(chunk.width * chunk.height * 4);
+    const buffer = new Uint32Array(chunk.width * chunk.height);
 
     // Render the chunk
     renderChunk(chunk, buffer, parameters, canvasWidth, canvasHeight, chunkIndex);
@@ -77,7 +59,7 @@ self.onmessage = (event: MessageEvent) => {
 // Function to render a chunk of the Mandelbrot set
 function renderChunk(
   chunk: { startX: number; startY: number; width: number; height: number },
-  buffer: Uint8ClampedArray,
+  buffer: Uint32Array,
   parameters: {
     maxIterations: number;
     zoom: number;
@@ -114,17 +96,8 @@ function renderChunk(
         iter++;
       }
 
-      // TODO: don't compute colors here; return the iterations instead
-      // and let the main thread apply colors
-
-      // Compute color based on number of iterations
-      const [r, g, b] = firePalette(iter, maxIterations);
-      const pixelIndex = (y * width + x) * 4;
-
-      buffer[pixelIndex] = r;
-      buffer[pixelIndex + 1] = g;
-      buffer[pixelIndex + 2] = b;
-      buffer[pixelIndex + 3] = 255;
+      const pixelIndex = y * width + x;
+      buffer[pixelIndex] = iter;
     }
   }
 }

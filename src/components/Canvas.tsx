@@ -57,7 +57,7 @@ export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
     console.log("Updating color scheme", colorScheme);
     // Update fractal parameters when color scheme changes
     setParams((prev) => ({ ...prev, colorScheme: colorScheme }));
-    fractal.parameters.colorScheme = colorScheme;
+    fractal.applyColorScheme(colorScheme, canvasRef.current);
   }, [colorScheme]);
 
   /**
@@ -75,19 +75,22 @@ export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Skip if only color scheme changed (it was already handled)
+    if (
+      fractal.parameters.colorScheme === colorScheme &&
+      Object.keys(params).every(
+        (key) =>
+          key === "colorScheme" ||
+          params[key as keyof FractalParameters] === fractal.parameters[key as keyof FractalParameters]
+      )
+    ) {
+      return;
+    }
+
     // set canvas size to container pixel size
     const { width, height } = canvasDimensions;
     canvas.width = width;
     canvas.height = height;
-
-    // const newMaxIterations = Math.floor(250 + 1000 * Math.log10(newZoom + 1));
-    // console.log("New max iterations", newMaxIterations);
-
-    // setParams((prev) => ({
-    //   ...prev,
-    //   zoom: newZoom,
-    //   maxIterations: newMaxIterations,
-    // }));
 
     // set fractal parameters
     fractal.parameters = {
