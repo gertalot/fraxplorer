@@ -16,7 +16,7 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
   protected lastZoom: number | null = null;
 
   // Store iteration data for the entire canvas
-  protected fullCanvasIterationData: Uint32Array | null = null;
+  protected fullCanvasIterationData: Float64Array | null = null;
   protected canvasWidth = 0;
   protected canvasHeight = 0;
 
@@ -131,12 +131,7 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
   protected renderingInProgress = false;
   protected onProgressCallback: ((progress: number) => void) | null = null;
   protected onCompleteCallback: (() => void) | null = null;
-
-  // protected renderingContext: CanvasRenderingContext2D | null = null;
-  // protected renderingCanvas: HTMLCanvasElement | null = null;
   protected renderingProgress = 0;
-  // protected chunksTotal = 0;
-  // protected chunksCompleted = 0;
 
   setRenderProgress(progress: number): void {
     this.renderingProgress = progress;
@@ -176,21 +171,22 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
 
   // Store a chunk's iteration data in the full canvas array
   protected storeChunkIterationData(
-    chunkData: Uint32Array,
+    chunkData: Float64Array,
     chunk: { startX: number; startY: number; width: number; height: number }
   ): void {
     if (!this.fullCanvasIterationData) return;
 
+    // copy the iteration data from the chunk into the full canvas data
     const { startX, startY, width, height } = chunk;
-
-    // Copy each row of the chunk data to the correct position in the full canvas array
     for (let y = 0; y < height; y++) {
-      const canvasRowOffset = (startY + y) * this.canvasWidth + startX;
-      const chunkRowOffset = y * width;
-
-      // Copy this row from chunk data to full canvas data
       for (let x = 0; x < width; x++) {
-        this.fullCanvasIterationData[canvasRowOffset + x] = chunkData[chunkRowOffset + x];
+        const canvasIndex = ((startY + y) * this.canvasWidth + (startX + x)) * 3;
+        const chunkIndex = (y * width + x) * 3;
+
+        // Copy all three values: iter, zr, zi
+        this.fullCanvasIterationData[canvasIndex] = chunkData[chunkIndex]; // iter
+        this.fullCanvasIterationData[canvasIndex + 1] = chunkData[chunkIndex + 1]; // zr
+        this.fullCanvasIterationData[canvasIndex + 2] = chunkData[chunkIndex + 2]; // zi
       }
     }
   }

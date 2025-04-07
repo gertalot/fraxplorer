@@ -1,5 +1,5 @@
 interface ColorSchemeFn {
-  (iter: number, maxIterations: number): [number, number, number];
+  (iter: number, maxIterations: number, zr?: number, zi?: number): [number, number, number];
 }
 
 // Helper function to convert HSL to RGB
@@ -31,6 +31,15 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   const b = Math.round(hueToRgb(p, q, h / 360 - 1 / 3) * 255);
 
   return [r, g, b];
+}
+
+// Improved smooth coloring with logarithmic scaling
+function advancedSmoothValue(iter: number, maxIter: number, z: { x: number; y: number }): number {
+  if (iter === maxIter) return 1;
+
+  const modulus = Math.sqrt(z.x * z.x + z.y * z.y);
+  const mu = iter - Math.log(Math.log(modulus)) / Math.log(2);
+  return mu / maxIter;
 }
 
 const firePalette: ColorSchemeFn = (iter, maxIterations) => {
@@ -684,22 +693,17 @@ function oklabToRgb(L: number, a: number, b: number): [number, number, number] {
   return [r, g, b2];
 }
 
-// // Cubic spline interpolation for smoother color transitions
-// function cubicInterpolate(y0: number, y1: number, y2: number, y3: number, mu: number): number {
-//   const mu2 = mu * mu;
-//   const a0 = y3 - y2 - y0 + y1;
-//   const a1 = y0 - y1 - a0;
-//   const a2 = y2 - y0;
-//   const a3 = y1;
-
-//   return a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3;
-// }
-
 // 1. Quantum Fluctuation - Complex oscillating patterns with phase shifts
-function quantumFluctuation(iter: number, maxIter: number): [number, number, number] {
+function quantumFluctuation(iter: number, maxIter: number, zr?: number, zi?: number): [number, number, number] {
   if (iter === maxIter) return [0, 0, 0];
 
+  let smoothValue = iter;
+  if (iter < maxIter && zr !== undefined && zi !== undefined) {
+    smoothValue = iter + advancedSmoothValue(iter, maxIter, { x: zr, y: zi });
+  }
+
   // Non-linear scaling with logarithmic compression
+  // const t = smoothValue / maxIter;
   const t = Math.log(1 + iter) / Math.log(1 + maxIter);
 
   // Multiple frequency oscillations with phase shifts

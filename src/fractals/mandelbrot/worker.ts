@@ -23,7 +23,7 @@ self.onmessage = (event: MessageEvent<RenderChunkMessage>) => {
  */
 function onRenderChunkMessage(data: RenderChunkMessage): [WorkerResponse, Transferable[]] {
   const { chunk, parameters, canvasWidth, canvasHeight, chunkIndex, taskId } = data;
-  const buffer = new Uint32Array(chunk.width * chunk.height);
+  const buffer = new Float64Array(chunk.width * chunk.height * 3);
   renderChunk(chunk, parameters, canvasWidth, canvasHeight, buffer);
   return [
     {
@@ -43,7 +43,7 @@ function renderChunk(
   parameters: RenderChunkMessage["parameters"],
   canvasWidth: number,
   canvasHeight: number,
-  buffer: Uint32Array
+  buffer: Float64Array
 ): void {
   const { startX, startY, width, height } = chunk;
   const { zoom, center, maxIterations } = parameters;
@@ -60,9 +60,11 @@ function renderChunk(
         zoom
       );
 
-      const { iter } = compute(real, imag, maxIterations);
-      const pixelIndex = y * width + x;
+      const { iter, zr, zi } = compute(real, imag, maxIterations);
+      const pixelIndex = (y * width + x) * 3;
       buffer[pixelIndex] = iter;
+      buffer[pixelIndex + 1] = zr;
+      buffer[pixelIndex + 2] = zi;
     }
   }
 }

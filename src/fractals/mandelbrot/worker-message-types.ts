@@ -16,7 +16,7 @@ export interface ChunkCompleteMessage {
   chunk: RenderChunk;
   chunkIndex: number;
   taskId?: number;
-  buffer: Uint32Array;
+  buffer: Float64Array;
 }
 
 export type WorkerResponse = ChunkCompleteMessage;

@@ -43,15 +43,16 @@ const fractalToCanvasPoint = (
 };
 
 const iterationDataToRGBAData = (
-  iterationData: Uint32Array,
+  iterationData: Float64Array,
   width: number,
   height: number,
   maxIterations: number,
   getColorFn: ColorSchemeFn
 ): Uint8ClampedArray => {
   const rgbaData = new Uint8ClampedArray(width * height * 4);
-  for (let i = 0; i < iterationData.length; i++) {
-    const [r, g, b] = getColorFn(iterationData[i], maxIterations);
+  for (let i = 0; i < iterationData.length / 3; i++) {
+    const [iter, zr, zi] = [iterationData[i * 3], iterationData[i * 3 + 1], iterationData[i * 3 + 2]];
+    const [r, g, b] = getColorFn(iter, maxIterations, zr, zi);
     const pixelIndex = i * 4;
     rgbaData[pixelIndex] = r;
     rgbaData[pixelIndex + 1] = g;

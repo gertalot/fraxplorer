@@ -44,7 +44,6 @@ class Mandelbrot extends BaseFractal<FractalParameters> {
       maxIterations: 250,
       zoom: 1.0,
       center: { x: -1.0, y: 0 },
-      // colorScheme: "default",
     };
   }
 
@@ -73,12 +72,6 @@ class Mandelbrot extends BaseFractal<FractalParameters> {
     this.canvasWidth = canvas.width;
     this.canvasHeight = canvas.height;
 
-    // Initialize the full canvas iteration data array
-    this.fullCanvasIterationData = new Uint32Array(canvas.width * canvas.height);
-
-    // Create chunks for processing
-    const chunks = createChunks(canvas.width, canvas.height);
-    this.chunksTotal = chunks.length;
     // Store the current center and zoom for future previews
     this.lastCenter = {
       x: this.parameters.center.x,
@@ -86,7 +79,13 @@ class Mandelbrot extends BaseFractal<FractalParameters> {
     };
     this.lastZoom = this.parameters.zoom;
 
-    // Process chunks using web workers
+    // Initialize the full canvas iteration data array; each result is stored as three
+    // floats: iteration count, zr, and zi
+    this.fullCanvasIterationData = new Float64Array(canvas.width * canvas.height * 3);
+
+    // Create chunks for processing and process them with web workers
+    const chunks = createChunks(canvas.width, canvas.height);
+    this.chunksTotal = chunks.length;
     await this.processChunksWithWorkers(chunks, getColorFn);
   }
 
