@@ -20,11 +20,11 @@ function useGlobalKeyHandler(selectedScheme: string | null, onSchemeChange: (sch
       const schemes = Object.keys(colorSchemes);
       const currentIndex = selectedScheme ? schemes.indexOf(selectedScheme) : -1;
 
-      if (e.key === "]") {
+      if (e.key === "]" && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         e.preventDefault();
         const nextIndex = (currentIndex + 1) % schemes.length;
         onSchemeChange(schemes[nextIndex]);
-      } else if (e.key === "[") {
+      } else if (e.key === "[" && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         e.preventDefault();
         const prevIndex = (currentIndex - 1 + schemes.length) % schemes.length;
         onSchemeChange(schemes[prevIndex]);
