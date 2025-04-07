@@ -27,17 +27,13 @@ interface ChunkCompleteMessage {
   chunkIndex: number;
 }
 
-// interface InitMessage {
-//   type: "init"
-//   colorSchemes: typeof colorSchemes
-// }
-
 // type WorkerMessage = RenderChunkMessage | InitMessage
 type WorkerResponse = ChunkCompleteMessage;
 
 class Mandelbrot implements Fractal<FractalParameters> {
   // parameters that define the fractal
   parameters: FractalParameters;
+  colorScheme: string | null;
 
   // data we need for fast previews
   private lastImageData: ImageData | null = null;
@@ -65,6 +61,7 @@ class Mandelbrot implements Fractal<FractalParameters> {
 
   constructor() {
     this.parameters = this.defaultParameters();
+    this.colorScheme = Object.keys(colorSchemes)[0];
     this.initWorkerPool();
   }
 
@@ -95,13 +92,11 @@ class Mandelbrot implements Fractal<FractalParameters> {
       maxIterations: 250,
       zoom: 1.0,
       center: { x: -1.0, y: 0 },
-      colorScheme: "default",
+      // colorScheme: "default",
     };
   }
 
   preview(canvas: HTMLCanvasElement) {
-    console.log("preview", this.parameters.center, this.parameters.zoom);
-
     this.cancelRendering();
 
     if (this.lastImageData) {
@@ -181,8 +176,8 @@ class Mandelbrot implements Fractal<FractalParameters> {
     });
 
     let getColorFn;
-    if (this.parameters.colorScheme && colorSchemes[this.parameters.colorScheme]) {
-      getColorFn = colorSchemes[this.parameters.colorScheme];
+    if (this.colorScheme && colorSchemes[this.colorScheme]) {
+      getColorFn = colorSchemes[this.colorScheme];
     } else {
       getColorFn = colorSchemes[Object.keys(colorSchemes)[0]];
     }
@@ -387,7 +382,7 @@ class Mandelbrot implements Fractal<FractalParameters> {
     }
 
     // Update the current color scheme
-    this.parameters.colorScheme = colorScheme;
+    this.colorScheme = colorScheme;
 
     // Get the canvas context
     if (!canvas) return false;
@@ -498,25 +493,6 @@ class Mandelbrot implements Fractal<FractalParameters> {
     chunkSize = Math.max(20, Math.min(500, chunkSize));
 
     return chunkSize;
-  }
-
-  private getColor(iter: number, maxIterations: number) {
-    if (iter === maxIterations) return [0, 0, 0];
-
-    const ratio = iter / maxIterations;
-    // From black to red to yellow to white
-    if (ratio < 0.2) {
-      const r = Math.round(ratio * 5 * 255);
-      return [r, 0, 0];
-    } else if (ratio < 0.5) {
-      const g = Math.round((ratio - 0.2) * 3.33 * 255);
-      return [255, g, 0];
-    } else {
-      const b = Math.round((ratio - 0.5) * 2 * 255);
-      const r = 255;
-      const g = 255;
-      return [r, g, b];
-    }
   }
 }
 

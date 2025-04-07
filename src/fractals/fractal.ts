@@ -2,7 +2,6 @@ interface FractalParameters {
   maxIterations: number;
   zoom: number;
   center: { x: number; y: number };
-  colorScheme: string | null;
 }
 
 const canvasToFractalPoint = (
@@ -37,6 +36,7 @@ const fractalToCanvasPoint = (
 
 interface Fractal<TParameters extends FractalParameters> {
   parameters: TParameters;
+  colorScheme: string | null;
 
   defaultParameters: () => TParameters;
   preview: (canvas: HTMLCanvasElement) => void;

@@ -7,12 +7,16 @@ import { useState } from "react";
 
 const myFractal = new Mandelbrot();
 
+/**
+ * Renders a canvas that fills the window, and a UI component.
+
+ * @returns The main application
+ */
 function App() {
   const [colorScheme, setColorScheme] = useState<string | null>(null);
   const [progress, setProgress] = useState<number>(0);
 
   myFractal.onProgress((progress: number) => {
-    console.log(`Progress: ${progress * 100}%`);
     setProgress(progress);
   });
 
