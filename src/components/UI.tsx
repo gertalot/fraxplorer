@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Progress } from "@/components/ui/progress";
+import { ProgressBar } from "./ProgressBar";
 
 import styles from "./UI.module.css";
 import { UITrigger } from "./UITrigger";
@@ -40,12 +40,25 @@ const UI = ({ colorScheme, onSchemeChange, progress }: UIProps) => {
   const [isOpened, setIsOpened] = useState(false);
   const [showSchemeName, setShowSchemeName] = useState(false);
   const [currentSchemeName, setCurrentSchemeName] = useState("");
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   useGlobalKeyHandler(colorScheme, (scheme) => {
     onSchemeChange(scheme);
     setCurrentSchemeName(scheme);
+    setIsFadingOut(false);
     setShowSchemeName(true);
-    setTimeout(() => setShowSchemeName(false), 2000);
+
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    setTimeoutId(
+      setTimeout(() => {
+        setIsFadingOut(true);
+        setTimeout(() => setShowSchemeName(false), 200); // Match CSS animation duration
+      }, 2000)
+    );
   });
 
   return (
@@ -65,15 +78,10 @@ const UI = ({ colorScheme, onSchemeChange, progress }: UIProps) => {
           </div>
         </PopoverContent>
       </Popover>
-      {progress > 0 && progress < 1 && (
-        <div className="fixed bottom-6 left-12 w-48">
-          <Progress value={progress * 100} />
-        </div>
-      )}
+      <ProgressBar progress={progress} />
       {showSchemeName && (
         <div
-          className={`${styles.animateFadeInOut} fixed bottom-6 left-12 bg-black/70 text-white px-4 py-2 
-            rounded-lg backdrop-blur-sm`}
+          className={`${isFadingOut ? styles.animateFadeOut : styles.animateFadeIn} fixed bottom-6 left-12 bg-black/70 text-white px-4 py-2 rounded-lg backdrop-blur-sm`}
         >
           Applying Color Scheme &quot;{currentSchemeName}&quot;...
         </div>

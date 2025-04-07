@@ -13,6 +13,10 @@
   }
 }
 
-.animateFadeInOut {
-  animation: fadeInOut 2s ease-in-out forwards;
+.animateFadeIn {
+  animation: fadeIn 0.2s ease-in-out forwards;
+}
+
+.animateFadeOut {
+  animation: fadeIn 0.2s ease-in-out reverse forwards;
 }
