@@ -1,5 +1,5 @@
-import type { Fractal, FractalParameters } from "./fractal";
-import colorSchemes, { ColorSchemeFn } from "./colorschemes";
+import { iterationDataToRGBAData, type Fractal, type FractalParameters } from "./fractal";
+import colorSchemes from "./colorschemes";
 
 /**
  * Base class for fractal implementations that provides common functionality
@@ -109,7 +109,7 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
     if (!ctx) return false;
 
     // // Apply the color function to each pixel
-    const rgbaData = this.iterationDataToRGBAData(
+    const rgbaData = iterationDataToRGBAData(
       this.fullCanvasIterationData,
       this.canvasWidth,
       this.canvasHeight,
@@ -125,26 +125,6 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
     this.lastImageData = imageData;
 
     return true;
-  }
-
-  iterationDataToRGBAData(
-    iterationData: Uint32Array,
-    width: number,
-    height: number,
-    maxIterations: number,
-    getColorFn: ColorSchemeFn
-  ): Uint8ClampedArray {
-    const rgbaData = new Uint8ClampedArray(width * height * 4);
-    for (let i = 0; i < iterationData.length; i++) {
-      const [r, g, b] = getColorFn(iterationData[i], maxIterations);
-      const pixelIndex = i * 4;
-      rgbaData[pixelIndex] = r;
-      rgbaData[pixelIndex + 1] = g;
-      rgbaData[pixelIndex + 2] = b;
-      rgbaData[pixelIndex + 3] = 255;
-    }
-
-    return rgbaData;
   }
 
   // Rendering state management

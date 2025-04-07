@@ -1,5 +1,5 @@
 import { WorkerPool } from "@/lib/workerpool";
-import { FractalParameters } from "../fractal";
+import { FractalParameters, iterationDataToRGBAData } from "../fractal";
 import colorSchemes from "../colorschemes";
 import { ColorSchemeFn } from "../colorschemes";
 import { BaseFractal } from "../base-fractal";
@@ -135,7 +135,7 @@ class Mandelbrot extends BaseFractal<FractalParameters> {
             this.storeChunkIterationData(buffer, renderedChunk);
 
             // // Apply the color function to each pixel
-            const rgbaData = this.iterationDataToRGBAData(
+            const rgbaData = iterationDataToRGBAData(
               buffer,
               chunk.width,
               chunk.height,

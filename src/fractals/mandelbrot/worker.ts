@@ -1,4 +1,4 @@
-import { canvasToFractalPoint } from "../fractal";
+import { canvasToFractalPoint, FractalIterationResult } from "../fractal";
 import { RenderChunkMessage, WorkerResponse } from "./worker-message-types";
 
 // Explicitly declare the worker context to get the correct typings
@@ -60,7 +60,7 @@ function renderChunk(
         zoom
       );
 
-      const iter = compute(real, imag, maxIterations);
+      const { iter } = compute(real, imag, maxIterations);
       const pixelIndex = y * width + x;
       buffer[pixelIndex] = iter;
     }
@@ -77,7 +77,7 @@ function renderChunk(
  * @param canvasHeight
  * @returns
  */
-function compute(real: number, imag: number, maxIterations: number): number {
+function compute(real: number, imag: number, maxIterations: number): FractalIterationResult {
   // Calculate Mandelbrot set iteration count
   let zr = 0;
   let zi = 0;
@@ -89,7 +89,7 @@ function compute(real: number, imag: number, maxIterations: number): number {
     zr = newZr;
     iter++;
   }
-  return iter;
+  return { iter, zr, zi };
 }
 
 // Let the main thread know the worker is ready

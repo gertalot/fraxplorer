@@ -1,7 +1,15 @@
+import { ColorSchemeFn } from "./colorschemes";
+
 interface FractalParameters {
   maxIterations: number;
   zoom: number;
   center: { x: number; y: number };
+}
+
+interface FractalIterationResult {
+  iter: number;
+  zr: number;
+  zi: number;
 }
 
 const canvasToFractalPoint = (
@@ -34,6 +42,25 @@ const fractalToCanvasPoint = (
   };
 };
 
+const iterationDataToRGBAData = (
+  iterationData: Uint32Array,
+  width: number,
+  height: number,
+  maxIterations: number,
+  getColorFn: ColorSchemeFn
+): Uint8ClampedArray => {
+  const rgbaData = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < iterationData.length; i++) {
+    const [r, g, b] = getColorFn(iterationData[i], maxIterations);
+    const pixelIndex = i * 4;
+    rgbaData[pixelIndex] = r;
+    rgbaData[pixelIndex + 1] = g;
+    rgbaData[pixelIndex + 2] = b;
+    rgbaData[pixelIndex + 3] = 255;
+  }
+
+  return rgbaData;
+};
 interface Fractal<TParameters extends FractalParameters> {
   parameters: TParameters;
   colorScheme: string | null;
@@ -44,6 +71,6 @@ interface Fractal<TParameters extends FractalParameters> {
   applyColorScheme: (colorScheme: string | null, canvas: HTMLCanvasElement | null) => boolean;
 }
 
-export type { FractalParameters, Fractal };
-export { canvasToFractalPoint, fractalToCanvasPoint };
+export type { FractalParameters, Fractal, FractalIterationResult };
+export { canvasToFractalPoint, fractalToCanvasPoint, iterationDataToRGBAData };
 export default Fractal;
