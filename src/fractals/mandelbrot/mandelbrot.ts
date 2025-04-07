@@ -134,18 +134,14 @@ class Mandelbrot extends BaseFractal<FractalParameters> {
             // Store the iteration data in the full canvas array
             this.storeChunkIterationData(buffer, renderedChunk);
 
-            // Convert the iteration data to RGBA data we can use on the canvas
-            const iterationData = buffer;
-            const rgbaData = new Uint8ClampedArray(iterationData.length * 4);
-
-            for (let i = 0; i < iterationData.length; i++) {
-              const [r, g, b] = getColorFn(iterationData[i], this.parameters.maxIterations);
-              const pixelIndex = i * 4;
-              rgbaData[pixelIndex] = r;
-              rgbaData[pixelIndex + 1] = g;
-              rgbaData[pixelIndex + 2] = b;
-              rgbaData[pixelIndex + 3] = 255;
-            }
+            // // Apply the color function to each pixel
+            const rgbaData = this.iterationDataToRGBAData(
+              buffer,
+              chunk.width,
+              chunk.height,
+              this.parameters.maxIterations,
+              getColorFn
+            );
 
             // Create a new ImageData from the buffer
             const chunkImageData = new ImageData(rgbaData, renderedChunk.width, renderedChunk.height);

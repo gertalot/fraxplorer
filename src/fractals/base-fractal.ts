@@ -1,5 +1,5 @@
 import type { Fractal, FractalParameters } from "./fractal";
-import colorSchemes from "./colorschemes";
+import colorSchemes, { ColorSchemeFn } from "./colorschemes";
 
 /**
  * Base class for fractal implementations that provides common functionality
@@ -108,18 +108,14 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
     const ctx = canvas.getContext("2d");
     if (!ctx) return false;
 
-    // Create RGBA data for the entire canvas
-    const rgbaData = new Uint8ClampedArray(this.canvasWidth * this.canvasHeight * 4);
-
-    // Apply the color function to each pixel
-    for (let i = 0; i < this.fullCanvasIterationData.length; i++) {
-      const [r, g, b] = getColorFn(this.fullCanvasIterationData[i], this.parameters.maxIterations);
-      const pixelIndex = i * 4;
-      rgbaData[pixelIndex] = r;
-      rgbaData[pixelIndex + 1] = g;
-      rgbaData[pixelIndex + 2] = b;
-      rgbaData[pixelIndex + 3] = 255;
-    }
+    // // Apply the color function to each pixel
+    const rgbaData = this.iterationDataToRGBAData(
+      this.fullCanvasIterationData,
+      this.canvasWidth,
+      this.canvasHeight,
+      this.parameters.maxIterations,
+      getColorFn
+    );
 
     // Create a new ImageData and put it on the canvas
     const imageData = new ImageData(rgbaData, this.canvasWidth, this.canvasHeight);
@@ -129,6 +125,26 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
     this.lastImageData = imageData;
 
     return true;
+  }
+
+  iterationDataToRGBAData(
+    iterationData: Uint32Array,
+    width: number,
+    height: number,
+    maxIterations: number,
+    getColorFn: ColorSchemeFn
+  ): Uint8ClampedArray {
+    const rgbaData = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0; i < iterationData.length; i++) {
+      const [r, g, b] = getColorFn(iterationData[i], maxIterations);
+      const pixelIndex = i * 4;
+      rgbaData[pixelIndex] = r;
+      rgbaData[pixelIndex + 1] = g;
+      rgbaData[pixelIndex + 2] = b;
+      rgbaData[pixelIndex + 3] = 255;
+    }
+
+    return rgbaData;
   }
 
   // Rendering state management
