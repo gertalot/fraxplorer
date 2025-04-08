@@ -1,4 +1,4 @@
-# Fraxplorer
+# Fractal Wonder
 
 This is a personal project to explore various strategies for AI-assisted coding, and making something beautiful while
 doing so.
@@ -26,10 +26,8 @@ using for now.
 
 ## Usage
 
-the UI is pretty simple... When you move the pointer, a little icon shows up in the lower-left corner of the screen.
-This will contain parameters such as zoom level, center, and max iterations, but for now it just contains a dropdown
-menu to select the color scheme you want to use. Other than that, you can drag and use the scroll wheel to move and zoom
-in/out.
+the UI is pretty simple... When you move the pointer, the UI shows up at the bottom of the screen. Dragging across the
+screen will move the fractal, and the scroll wheel will zoom in and out.
 
 ## Stack
 
