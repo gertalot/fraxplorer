@@ -3,7 +3,7 @@ import { Canvas } from "@/components/Canvas";
 import { ThemeProvider } from "@/components/theme-provider";
 import UI from "@/components/UI";
 import Mandelbrot from "./fractals/mandelbrot/mandelbrot";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 /**
  * Renders a canvas that fills the window, and a UI component.
@@ -11,6 +11,9 @@ import { useState, useEffect } from "react";
  * @returns The main application
  */
 function App() {
+  const appContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   // Initialize fractal with stored values
   const [fractal] = useState(() => {
     const savedParams = localStorage.getItem("fraxplorer-parameters");
@@ -53,16 +56,49 @@ function App() {
     });
   }, [fractal]);
 
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement !== null);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (!isFullscreen) {
+      try {
+        if (appContainerRef.current) {
+          await appContainerRef.current.requestFullscreen();
+        }
+      } catch (err) {
+        console.error("Error attempting to enable fullscreen:", err);
+      }
+    } else {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
+      } catch (err) {
+        console.error("Error attempting to exit fullscreen:", err);
+      }
+    }
+  };
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="fraxplorer-ui-theme">
-      <div className="h-screen w-screen">
+      <div ref={appContainerRef} className="h-screen w-screen">
         <Canvas fractal={fractal} colorScheme={colorScheme} onParametersChange={setParameters} />
         <UI
           colorScheme={colorScheme}
           onSchemeChange={setColorScheme}
           progress={progress}
           parameters={parameters}
-          onParametersChange={setParameters}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
         />
       </div>
     </ThemeProvider>

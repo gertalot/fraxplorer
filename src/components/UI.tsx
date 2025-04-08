@@ -8,13 +8,16 @@ import { UITrigger } from "./UITrigger";
 import { ColorSchemeDropDownMenu } from "./ColorSchemeDropDownMenu";
 import colorSchemes from "@/fractals/colorschemes";
 import { FractalParameters } from "@/fractals/fractal";
+import { Button } from "./ui/button";
+import { Maximize, Minimize } from "lucide-react";
 
 interface UIProps {
   colorScheme: string | null;
   onSchemeChange: (scheme: string) => void;
   parameters: FractalParameters;
-  onParametersChange: (parameters: FractalParameters) => void;
   progress: number;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 function useGlobalKeyHandler(selectedScheme: string | null, onSchemeChange: (scheme: string) => void) {
@@ -39,7 +42,7 @@ function useGlobalKeyHandler(selectedScheme: string | null, onSchemeChange: (sch
   }, [selectedScheme, onSchemeChange]);
 }
 
-const UI = ({ colorScheme, onSchemeChange, parameters, progress }: UIProps) => {
+const UI = ({ colorScheme, onSchemeChange, parameters, progress, isFullscreen, onToggleFullscreen }: UIProps) => {
   const [isOpened, setIsOpened] = useState(false);
   const [showSchemeName, setShowSchemeName] = useState(false);
   const [currentSchemeName, setCurrentSchemeName] = useState("");
@@ -88,6 +91,17 @@ const UI = ({ colorScheme, onSchemeChange, parameters, progress }: UIProps) => {
               <p className="text-sm text-muted-foreground">
                 <ColorSchemeDropDownMenu selectedScheme={colorScheme} onSchemeChange={onSchemeChange} />
               </p>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-medium leading-none">Controls</h4>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full bg-black/20 backdrop-blur-sm hover:bg-black/30 cursor-pointer"
+                onClick={onToggleFullscreen}
+              >
+                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              </Button>
             </div>
           </div>
         </PopoverContent>
