@@ -21,6 +21,7 @@ function canvasSize(canvas: HTMLCanvasElement | null) {
 interface CanvasProps {
   fractal: Fractal<FractalParameters>;
   colorScheme: string | null;
+  onParametersChange?: (params: FractalParameters) => void;
 }
 
 /**
@@ -32,7 +33,7 @@ interface CanvasProps {
  * @param {Fractal<FractalParameters>} props.fractal - The fractal object to render
  * @returns {JSX.Element} A canvas element that displays the fractal
  */
-export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
+export const Canvas = ({ fractal, colorScheme, onParametersChange }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // keep track of changing dimensions so the canvas can be updated on render
@@ -82,6 +83,7 @@ export const Canvas = ({ fractal, colorScheme }: CanvasProps) => {
       ...params,
       maxIterations: Math.floor(250 + 1000 * Math.log10(params.zoom + 1)),
     };
+    onParametersChange?.(fractal.parameters);
 
     // immediately render fractal preview (the condition exists because when the
     // components are first rendered the canvas size is 0 somehow)

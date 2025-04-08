@@ -5,6 +5,11 @@ import colorSchemes from "./colorschemes";
  * Base class for fractal implementations that provides common functionality
  * like preview rendering and color scheme application
  */
+export interface BaseFractalOptions<TParameters extends FractalParameters> {
+  parameters?: TParameters;
+  colorScheme?: string | null;
+}
+
 export abstract class BaseFractal<TParameters extends FractalParameters> implements Fractal<TParameters> {
   // parameters that define the fractal
   parameters: TParameters;
@@ -20,9 +25,9 @@ export abstract class BaseFractal<TParameters extends FractalParameters> impleme
   protected canvasWidth = 0;
   protected canvasHeight = 0;
 
-  constructor() {
-    this.parameters = this.defaultParameters();
-    this.colorScheme = Object.keys(colorSchemes)[0];
+  constructor(options?: BaseFractalOptions<TParameters>) {
+    this.parameters = options?.parameters ?? this.defaultParameters();
+    this.colorScheme = options?.colorScheme ?? Object.keys(colorSchemes)[0];
   }
 
   abstract defaultParameters(): TParameters;

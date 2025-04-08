@@ -7,10 +7,13 @@ import styles from "./UI.module.css";
 import { UITrigger } from "./UITrigger";
 import { ColorSchemeDropDownMenu } from "./ColorSchemeDropDownMenu";
 import colorSchemes from "@/fractals/colorschemes";
+import { FractalParameters } from "@/fractals/fractal";
 
 interface UIProps {
   colorScheme: string | null;
   onSchemeChange: (scheme: string) => void;
+  parameters: FractalParameters;
+  onParametersChange: (parameters: FractalParameters) => void;
   progress: number;
 }
 
@@ -36,7 +39,7 @@ function useGlobalKeyHandler(selectedScheme: string | null, onSchemeChange: (sch
   }, [selectedScheme, onSchemeChange]);
 }
 
-const UI = ({ colorScheme, onSchemeChange, progress }: UIProps) => {
+const UI = ({ colorScheme, onSchemeChange, parameters, progress }: UIProps) => {
   const [isOpened, setIsOpened] = useState(false);
   const [showSchemeName, setShowSchemeName] = useState(false);
   const [currentSchemeName, setCurrentSchemeName] = useState("");
@@ -69,6 +72,17 @@ const UI = ({ colorScheme, onSchemeChange, progress }: UIProps) => {
         </PopoverTrigger>
         <PopoverContent className="fixed bottom-18 left-4">
           <div className="grid gap-4">
+            <div className="space-y-2">
+              <h4 className="font-medium leading-none">Parameters</h4>
+              <p className="text-sm text-muted-foreground">
+                x: {parameters.center.x}
+                <br />
+                y: {parameters.center.y}
+                <br />
+                Zoom: {parameters.zoom.toFixed(2)}x
+              </p>
+              <p className="text-sm text-muted-foreground">Iterations: {parameters.maxIterations.toFixed(0)}</p>
+            </div>
             <div className="space-y-2">
               <h4 className="font-medium leading-none">Color Scheme</h4>
               <p className="text-sm text-muted-foreground">

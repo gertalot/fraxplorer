@@ -2,7 +2,7 @@ import { WorkerPool } from "@/lib/workerpool";
 import { FractalParameters, iterationDataToRGBAData } from "../fractal";
 import colorSchemes from "../colorschemes";
 import { ColorSchemeFn } from "../colorschemes";
-import { BaseFractal } from "../base-fractal";
+import { BaseFractal, BaseFractalOptions } from "../base-fractal";
 import { createChunks, RenderChunk } from "../chunks";
 import { RenderChunkMessage, WorkerResponse } from "./worker-message-types";
 
@@ -16,8 +16,8 @@ class Mandelbrot extends BaseFractal<FractalParameters> {
   // Worker pool for parallel rendering
   private workerPool: WorkerPool | null = null;
 
-  constructor() {
-    super();
+  constructor(options?: BaseFractalOptions<FractalParameters>) {
+    super(options);
     this.initWorkerPool(new URL("./worker.ts", import.meta.url).href);
   }
 

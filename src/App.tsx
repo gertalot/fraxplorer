@@ -3,9 +3,7 @@ import { Canvas } from "@/components/Canvas";
 import { ThemeProvider } from "@/components/theme-provider";
 import UI from "@/components/UI";
 import Mandelbrot from "./fractals/mandelbrot/mandelbrot";
-import { useState } from "react";
-
-const myFractal = new Mandelbrot();
+import { useState, useEffect } from "react";
 
 /**
  * Renders a canvas that fills the window, and a UI component.
@@ -13,18 +11,59 @@ const myFractal = new Mandelbrot();
  * @returns The main application
  */
 function App() {
-  const [colorScheme, setColorScheme] = useState<string | null>(null);
+  // Initialize fractal with stored values
+  const [fractal] = useState(() => {
+    const savedParams = localStorage.getItem("fraxplorer-parameters");
+    const initialParams = savedParams ? JSON.parse(savedParams) : undefined;
+    const initialColorScheme = localStorage.getItem("fraxplorer-colorScheme") || null;
+    return new Mandelbrot({
+      parameters: initialParams,
+      colorScheme: initialColorScheme,
+    });
+  });
+
+  // Initialize state from fractal's properties
+  const [colorScheme, setColorScheme] = useState(fractal.colorScheme);
+  const [parameters, setParameters] = useState(fractal.parameters);
   const [progress, setProgress] = useState<number>(0);
 
-  myFractal.onProgress((progress: number) => {
-    setProgress(progress);
-  });
+  // Persist color scheme changes
+  useEffect(() => {
+    if (colorScheme) {
+      localStorage.setItem("fraxplorer-colorScheme", colorScheme);
+    } else {
+      localStorage.removeItem("fraxplorer-colorScheme");
+    }
+  }, [colorScheme]);
+
+  // Persist parameter changes
+  useEffect(() => {
+    localStorage.setItem("fraxplorer-parameters", JSON.stringify(parameters));
+  }, [parameters]);
+
+  // Update fractal when parameters change
+  useEffect(() => {
+    fractal.parameters = parameters;
+    fractal.cancelRendering();
+  }, [fractal, parameters]);
+
+  useEffect(() => {
+    fractal.onProgress((progress: number) => {
+      setProgress(progress);
+    });
+  }, [fractal]);
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="fraxplorer-ui-theme">
       <div className="h-screen w-screen">
-        <Canvas fractal={myFractal} colorScheme={colorScheme} />
-        <UI colorScheme={colorScheme} onSchemeChange={setColorScheme} progress={progress} />
+        <Canvas fractal={fractal} colorScheme={colorScheme} onParametersChange={setParameters} />
+        <UI
+          colorScheme={colorScheme}
+          onSchemeChange={setColorScheme}
+          progress={progress}
+          parameters={parameters}
+          onParametersChange={setParameters}
+        />
       </div>
     </ThemeProvider>
   );
