@@ -4,52 +4,19 @@ import { useFractalStore } from "./hooks/use-store";
 import { Popover, PopoverTrigger, PopoverContent } from "@radix-ui/react-popover";
 import { Info, Maximize, Minimize } from "lucide-react";
 import { Button } from "./ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useFullscreen } from "./hooks/use-full-screen";
 
 export const UI = () => {
   const [isVisible, setIsVisible] = useState(true);
-  const [isHovering, setIsHovering] = useState(false);
-  const [isPointerActive, setIsPointerActive] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const { params, colorScheme } = useFractalStore();
 
-  useEffect(() => {
-    const handleMouseMove = () => setIsVisible(true);
-    // Create separate handler for window events
-    const handleWindowPointerStart = () => handlePointerStart(false);
-    const handlePointerEnd = () => {
-      setIsPointerActive(false);
-      resetTimeout();
-    };
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
-    // Add wheel listener
-    window.addEventListener("wheel", handleMouseMove);
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mousedown", handleWindowPointerStart);
-    window.addEventListener("mouseup", handlePointerEnd);
-    window.addEventListener("touchstart", handleWindowPointerStart);
-    window.addEventListener("touchend", handlePointerEnd);
-
-    return () => {
-      window.removeEventListener("wheel", handleMouseMove);
-      window.removeEventListener("mousedown", handleWindowPointerStart);
-      window.removeEventListener("mouseup", handlePointerEnd);
-      window.removeEventListener("touchstart", handleWindowPointerStart);
-      window.removeEventListener("touchend", handlePointerEnd);
-    };
-  }, []);
-
-  // Unified pointer start handler
-  const handlePointerStart = (fromPopover: boolean) => {
-    setIsVisible(true);
-    setIsPointerActive(true);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (fromPopover) {
-      setIsPopoverOpen(true);
-    }
-  };
+  const [isHovering, setIsHovering] = useState(false);
+  const [isPointerActive, setIsPointerActive] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const resetTimeout = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -62,26 +29,39 @@ export const UI = () => {
     resetTimeout();
   }
 
-  // Add fullscreen detection
-  // Update fullscreen detection useEffect
+  // trigger UI visibility when the user does... stuff.
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement); // Direct check instead of negation
+    const handleVisibilityTrigger = () => {
+      setIsVisible(true);
     };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+
+    const handlePointerStart = () => {
+      setIsVisible(true);
+      setIsPointerActive(true);
+    };
+    const handlePointerEnd = () => {
+      setIsPointerActive(false);
+    };
+
+    // Add wheel listener
+    window.addEventListener("wheel", handleVisibilityTrigger);
+    window.addEventListener("mousemove", handleVisibilityTrigger);
+    window.addEventListener("mousedown", handlePointerStart);
+    window.addEventListener("mouseup", handlePointerEnd);
+    window.addEventListener("touchstart", handlePointerStart);
+    window.addEventListener("touchend", handlePointerEnd);
+    window.addEventListener("keydown", handleVisibilityTrigger);
+
+    return () => {
+      window.removeEventListener("wheel", handleVisibilityTrigger);
+      window.removeEventListener("mousemove", handleVisibilityTrigger);
+      window.removeEventListener("mousedown", handlePointerStart);
+      window.removeEventListener("mouseup", handlePointerEnd);
+      window.removeEventListener("touchstart", handlePointerStart);
+      window.removeEventListener("touchend", handlePointerEnd);
+      window.removeEventListener("keydown", handleVisibilityTrigger);
+    };
   }, []);
-
-  // Update toggle handler to remove state setting
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
-  };
-
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   return (
     <div
@@ -143,14 +123,21 @@ export const UI = () => {
         </div>
 
         {/* Add fullscreen toggle button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white hover:bg-white/10 hover:text-white rounded-full cursor-pointer"
-          onClick={toggleFullscreen}
-        >
-          {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/10 hover:text-white rounded-full cursor-pointer"
+              onClick={toggleFullscreen}
+            >
+              {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="bg-black/70 backdrop-blur-sm border-gray-800 text-white">
+            {isFullscreen ? "Exit full screen (f)" : "Full screen (f)"}
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
