@@ -17,6 +17,31 @@ export const Canvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   /**************************************************************************
+   * Respond to user interaction by showing a quick preview, and only
+   * doing a full render after an idle period.
+   **************************************************************************/
+
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle user activity and trigger preview/render
+  const handleUserActivity = useCallback(() => {
+    // Clear any existing timer
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+
+    // Preview immediately for quick user feedback
+    preview();
+
+    // Set a new timer for the full render
+    idleTimerRef.current = setTimeout(() => {
+      render();
+      // reset the pan/zoom interaction state
+      resetInteractionState();
+    }, 1000);
+  }, []);
+
+  /**************************************************************************
    * handle the browser window resizing
    **************************************************************************/
 
@@ -29,16 +54,16 @@ export const Canvas = () => {
   // ensure canvas dimensions are updated to match container size when the window resizes
   // (i.e. every pixel on screen is one pixel in the canvas)
   useEffect(() => {
-    const updateCanvasSize = () => {
+    const updateCanvasDimensions = () => {
       setCanvasDimensions(canvasSize(canvasRef.current));
     };
 
-    updateCanvasSize();
-    window.addEventListener("resize", updateCanvasSize);
-    return () => window.removeEventListener("resize", updateCanvasSize);
+    updateCanvasDimensions();
+    window.addEventListener("resize", updateCanvasDimensions);
+    return () => window.removeEventListener("resize", updateCanvasDimensions);
   }, []);
 
-  // re-render canvas when canvas dimensions change
+  // update preview when canvas dimensions change
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -48,9 +73,9 @@ export const Canvas = () => {
     canvas.width = width;
     canvas.height = height;
 
-    if (width > 0 && height > 0) {
-      render();
-    }
+    // this counts as user interaction, so ensure it's handled. This
+    // will cause preview to be called, and render after idle time.
+    handleUserActivity();
   }, [canvasDimensions]);
 
   /**************************************************************************
@@ -58,33 +83,16 @@ export const Canvas = () => {
    * but defer full render until user is idle for one second.
    **************************************************************************/
 
-  // Add wheelDeltaRef alongside dragOffsetRef
-  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { dragOffset, wheelDelta, setInteractionState, resetInteractionState } = usePanZoom(
+    canvasRef,
+    handleUserActivity
+  );
+
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const wheelDeltaRef = useRef({ x: 0, y: 0 });
-  const pointerPositionRef = useRef({ x: 0, y: 0 });
 
-  // Handle user activity and trigger preview/render
-  const handleUserActivity = useCallback(() => {
-    // Clear any existing timer
-    if (idleTimerRef.current) {
-      clearTimeout(idleTimerRef.current);
-    }
-
-    // Preview immediately for responsive feedback
-    preview();
-
-    // Set a new timer for the full render
-    idleTimerRef.current = setTimeout(() => {
-      // reset the pan/zoom interaction state
-      resetInteractionState();
-      render();
-    }, 1000);
-  }, []); // No dependencies needed now
-
-  const { dragOffset, wheelDelta, pointerPosition, resetInteractionState } = usePanZoom(canvasRef, handleUserActivity);
-
-  // Update the refs whenever values change
+  // Update the refs whenever values change so they are immediately available
+  // in the preview function.
   useEffect(() => {
     dragOffsetRef.current = dragOffset;
   }, [dragOffset]);
@@ -93,9 +101,10 @@ export const Canvas = () => {
     wheelDeltaRef.current = wheelDelta;
   }, [wheelDelta]);
 
-  useEffect(() => {
-    pointerPositionRef.current = pointerPosition;
-  }, [pointerPosition]);
+  /**************************************************************************
+   * Fast preview of panning, zooming, and canvas resizing by using the
+   * existing canvas image data if available.
+   **************************************************************************/
 
   const imageDataRef = useRef<ImageData | null>(null);
 
@@ -108,41 +117,53 @@ export const Canvas = () => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
+      const { width: currentWidth, height: currentHeight } = canvasSize(canvas);
+      const previousWidth = currentImageData.width;
+      const previousHeight = currentImageData.height;
+
+      // Calculate size delta between current and previous canvas
+      const widthDelta = currentWidth - previousWidth;
+      const heightDelta = currentHeight - previousHeight;
+
+      const centerX = currentWidth / 2;
+      const centerY = currentHeight / 2;
+
       // Clear the canvas first
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, currentWidth, currentHeight);
 
       // Create a temporary canvas for manipulation
       const tempCanvas = document.createElement("canvas");
-      const tempCtx = tempCanvas.getContext("2d");
-      if (!tempCtx) return;
+      tempCanvas.width = previousWidth;
+      tempCanvas.height = previousHeight;
+      tempCanvas.getContext("2d")?.putImageData(currentImageData, 0, 0);
 
-      // Set temp canvas to same size as our main canvas
-      tempCanvas.width = currentImageData.width;
-      tempCanvas.height = currentImageData.height;
-
-      // Put the image data on the temp canvas
-      tempCtx.putImageData(currentImageData, 0, 0);
+      const resizeOffset = {
+        x: widthDelta / 2, // Center offset X
+        y: heightDelta / 2, // Center offset Y
+      };
 
       // Calculate scale factor based on wheelDelta
       // A smaller divisor makes zooming more sensitive
-      const scaleFactor = Math.max(1, 1 + wheelDeltaRef.current.y / 1000);
-      console.log("scaleFactor:", scaleFactor, "wheelDelta:", wheelDeltaRef.current.y);
+      let scaleFactor = 1 + wheelDeltaRef.current.y / 1000;
+
+      if (scaleFactor < 1) {
+        // Limit minimum scale factor, also reset wheelDelta in that case
+        scaleFactor = 1;
+        setInteractionState((prev) => ({
+          ...prev,
+          wheelDelta: { x: prev.wheelDelta.x, y: 0 },
+        }));
+      }
 
       // Save the current transformation state
       ctx.save();
 
-      // Apply transformations (scale and translate)
-      // First translate to the pointer position (center of zoom)
-      ctx.translate(pointerPositionRef.current.x, pointerPositionRef.current.y);
+      ctx.translate(resizeOffset.x + dragOffsetRef.current.x, resizeOffset.y + dragOffsetRef.current.y);
 
-      // Apply scaling
+      // Then scale from the tracked center
+      ctx.translate(centerX, centerY);
       ctx.scale(scaleFactor, scaleFactor);
-
-      // Translate back and apply the drag offset
-      ctx.translate(
-        -pointerPositionRef.current.x + dragOffsetRef.current.x,
-        -pointerPositionRef.current.y + dragOffsetRef.current.y
-      );
+      ctx.translate(-centerX, -centerY);
 
       // Draw the temp canvas onto the main canvas with transformations applied
       ctx.drawImage(tempCanvas, 0, 0);
@@ -150,8 +171,7 @@ export const Canvas = () => {
       // Restore the original transformation state
       ctx.restore();
     } else {
-      console.log("no preview image data available; re-rendering");
-      render();
+      console.log("no preview image data available.");
     }
   }
 
@@ -187,6 +207,34 @@ export const Canvas = () => {
         ctx.fillRect(i, j, tileSize, tileSize);
       }
     }
+
+    // Draw center circle and crosshairs
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = canvas.height * 0.3; // 30% of canvas height
+
+    // Draw circle with red outline
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Draw horizontal line
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(canvas.width, centerY);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Draw vertical line
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, canvas.height);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
 
   return (

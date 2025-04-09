@@ -4,7 +4,6 @@ interface InteractionState {
   isDragging: boolean;
   dragOffset: { x: number; y: number };
   wheelDelta: { x: number; y: number };
-  pointerPosition: { x: number; y: number };
 }
 
 export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onActivity: () => void) {
@@ -12,64 +11,64 @@ export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onAc
     isDragging: false,
     dragOffset: { x: 0, y: 0 },
     wheelDelta: { x: 0, y: 0 },
-    pointerPosition: { x: 0, y: 0 },
   });
-
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
 
-  // Get device pixel ratio for accurate positioning
   const getDevicePixelRatio = useCallback(() => {
     return window.devicePixelRatio || 1;
   }, []);
 
-  // Handle pointer down event
+  // Pointer down means the user starts dragging
   const handlePointerDown = useCallback(
-    (e: PointerEvent) => {
-      onActivity();
-      setDragStart({ x: e.clientX, y: e.clientY });
+    (event: PointerEvent) => {
+      const dpr = getDevicePixelRatio();
+      // Start from previous drag offset to accumulate movements
+      setDragStart({
+        x: event.clientX - interactionState.dragOffset.x / dpr,
+        y: event.clientY - interactionState.dragOffset.y / dpr,
+      });
       setInteractionState((prev) => ({
         ...prev,
         isDragging: true,
-        pointerPosition: { x: e.clientX, y: e.clientY },
       }));
+      // let the hook consumer do their thing
+      onActivity();
     },
-    [onActivity]
+    [onActivity, interactionState.dragOffset, getDevicePixelRatio]
   );
 
-  // Handle pointer move event
+  // Pointer move while holding the mouse down means the user is dragging
   const handlePointerMove = useCallback(
-    (e: PointerEvent) => {
-      setInteractionState((prev) => ({
-        ...prev,
-        pointerPosition: { x: e.clientX, y: e.clientY },
-      }));
-
+    (event: PointerEvent) => {
       if (dragStart && interactionState.isDragging) {
-        onActivity();
         const dpr = getDevicePixelRatio();
+        // Calculate new offset based on how much the user has moved since they
+        // started dragging
         setInteractionState((prev) => ({
           ...prev,
           dragOffset: {
-            x: (e.clientX - dragStart.x) * dpr,
-            y: (e.clientY - dragStart.y) * dpr,
+            x: (event.clientX - dragStart.x) * dpr,
+            y: (event.clientY - dragStart.y) * dpr,
           },
         }));
+        // let the hook consumer do their thing
+        onActivity();
       }
     },
     [dragStart, interactionState.isDragging, onActivity, getDevicePixelRatio]
   );
 
-  // Handle pointer up event
+  // Pointer up means the user has finished dragging
   const handlePointerUp = useCallback(() => {
-    onActivity();
     setDragStart(null);
     setInteractionState((prev) => ({
       ...prev,
       isDragging: false,
     }));
+    onActivity();
   }, [onActivity]);
 
-  // Handle wheel event
+  // Mouse wheel means the user is zooming in or out
   const handleWheel = useCallback(
     (e: WheelEvent) => {
       onActivity();
@@ -110,13 +109,13 @@ export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onAc
       isDragging: false,
       dragOffset: { x: 0, y: 0 },
       wheelDelta: { x: 0, y: 0 },
-      pointerPosition: { x: 0, y: 0 },
     });
     setDragStart(null);
   }, []);
 
   return {
     ...interactionState,
+    setInteractionState,
     resetInteractionState,
   };
 }
