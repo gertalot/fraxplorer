@@ -4,6 +4,7 @@ interface InteractionState {
   isDragging: boolean;
   dragOffset: { x: number; y: number };
   wheelDelta: { x: number; y: number };
+  pointerPosition: { x: number; y: number } | null;
 }
 
 export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onActivity: () => void) {
@@ -11,6 +12,7 @@ export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onAc
     isDragging: false,
     dragOffset: { x: 0, y: 0 },
     wheelDelta: { x: 0, y: 0 },
+    pointerPosition: { x: 0, y: 0 },
   });
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
 
@@ -70,16 +72,16 @@ export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onAc
 
   // Mouse wheel means the user is zooming in or out
   const handleWheel = useCallback(
-    (e: WheelEvent) => {
+    (event: WheelEvent) => {
       onActivity();
       const dpr = getDevicePixelRatio();
       setInteractionState((prev) => ({
         ...prev,
         wheelDelta: {
-          x: prev.wheelDelta.x + e.deltaX * dpr,
-          y: prev.wheelDelta.y + e.deltaY * dpr,
+          x: prev.wheelDelta.x + event.deltaX * dpr,
+          y: prev.wheelDelta.y + event.deltaY * dpr,
         },
-        pointerPosition: { x: e.clientX, y: e.clientY },
+        pointerPosition: { x: event.clientX, y: event.clientY },
       }));
     },
     [onActivity, getDevicePixelRatio]
@@ -109,6 +111,7 @@ export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onAc
       isDragging: false,
       dragOffset: { x: 0, y: 0 },
       wheelDelta: { x: 0, y: 0 },
+      pointerPosition: { x: 0, y: 0 },
     });
     setDragStart(null);
   }, []);
