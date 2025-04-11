@@ -1,20 +1,43 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 interface InteractionState {
   isDragging: boolean;
+  isZooming: boolean;
   dragOffset: { x: number; y: number };
-  wheelDelta: { x: number; y: number };
+  wheelDelta: number;
   pointerPosition: { x: number; y: number } | null;
 }
 
-export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onActivity: () => void) {
-  const [interactionState, setInteractionState] = useState<InteractionState>({
-    isDragging: false,
-    dragOffset: { x: 0, y: 0 },
-    wheelDelta: { x: 0, y: 0 },
-    pointerPosition: { x: 0, y: 0 },
-  });
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+const initialInteractionState: InteractionState = {
+  isDragging: false,
+  isZooming: false,
+  dragOffset: { x: 0, y: 0 },
+  wheelDelta: 0,
+  pointerPosition: { x: 0, y: 0 },
+};
+
+interface PanZoomProps {
+  wheelSensitivity?: number;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  onWheelStart?: () => void;
+  onWheelEnd?: () => void;
+}
+
+const panZoomPropsDefaults: PanZoomProps = {
+  wheelSensitivity: 0.1,
+  onDragStart: () => {},
+  onDragEnd: () => {},
+  onWheelStart: () => {},
+  onWheelEnd: () => {},
+};
+
+export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, props?: PanZoomProps) {
+  const [interactionState, setInteractionState] = useState<InteractionState>(initialInteractionState);
+  const mergedProps = useMemo(() => ({ ...panZoomPropsDefaults, ...props }) as Required<PanZoomProps>, [props]);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const wheelStartRef = useRef<number | null>(null);
+  const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const getDevicePixelRatio = useCallback(() => {
     return window.devicePixelRatio || 1;
@@ -23,68 +46,88 @@ export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onAc
   // Pointer down means the user starts dragging
   const handlePointerDown = useCallback(
     (event: PointerEvent) => {
-      const dpr = getDevicePixelRatio();
       // Start from previous drag offset to accumulate movements
-      setDragStart({
-        x: event.clientX - interactionState.dragOffset.x / dpr,
-        y: event.clientY - interactionState.dragOffset.y / dpr,
-      });
+      dragStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
       setInteractionState((prev) => ({
         ...prev,
         isDragging: true,
       }));
-      // let the hook consumer do their thing
-      onActivity();
+      mergedProps.onDragStart();
     },
-    [onActivity, interactionState.dragOffset, getDevicePixelRatio]
+    [interactionState.dragOffset, getDevicePixelRatio]
   );
 
   // Pointer move while holding the mouse down means the user is dragging
   const handlePointerMove = useCallback(
     (event: PointerEvent) => {
-      if (dragStart && interactionState.isDragging) {
+      if (dragStartRef.current && interactionState.isDragging) {
         const dpr = getDevicePixelRatio();
         // Calculate new offset based on how much the user has moved since they
         // started dragging
         setInteractionState((prev) => ({
           ...prev,
           dragOffset: {
-            x: (event.clientX - dragStart.x) * dpr,
-            y: (event.clientY - dragStart.y) * dpr,
+            x: (event.clientX - (dragStartRef.current?.x || 0)) * dpr,
+            y: (event.clientY - (dragStartRef.current?.y || 0)) * dpr,
           },
         }));
-        // let the hook consumer do their thing
-        onActivity();
       }
     },
-    [dragStart, interactionState.isDragging, onActivity, getDevicePixelRatio]
+    [interactionState.isDragging, getDevicePixelRatio]
   );
 
   // Pointer up means the user has finished dragging
   const handlePointerUp = useCallback(() => {
-    setDragStart(null);
     setInteractionState((prev) => ({
       ...prev,
       isDragging: false,
     }));
-    onActivity();
-  }, [onActivity]);
+    dragStartRef.current = null;
+    mergedProps.onDragEnd();
+  }, []);
 
   // Mouse wheel means the user is zooming in or out
   const handleWheel = useCallback(
     (event: WheelEvent) => {
-      onActivity();
-      const dpr = getDevicePixelRatio();
+      event.preventDefault();
+      // Initialize wheelStartRef if null
+      if (!wheelStartRef.current) {
+        setInteractionState((prev) => ({
+          ...prev,
+          isZooming: true,
+        }));
+        wheelStartRef.current = 0;
+        mergedProps.onWheelStart();
+      }
+
+      // Update wheelStartRef with new deltas
+      wheelStartRef.current += event.deltaY / (10 / mergedProps.wheelSensitivity);
+
+      // Clear previous timeout if exists
+      if (wheelTimeoutRef.current) {
+        clearTimeout(wheelTimeoutRef.current);
+      }
+
       setInteractionState((prev) => ({
         ...prev,
-        wheelDelta: {
-          x: prev.wheelDelta.x + event.deltaX * dpr,
-          y: prev.wheelDelta.y + event.deltaY * dpr,
-        },
+        wheelDelta: wheelStartRef.current || 0,
         pointerPosition: { x: event.clientX, y: event.clientY },
       }));
+
+      // Set new timeout to reset wheelStartRef
+      wheelTimeoutRef.current = setTimeout(() => {
+        wheelStartRef.current = null;
+        setInteractionState((prev) => ({
+          ...prev,
+          isDragging: false,
+        }));
+        mergedProps.onWheelEnd();
+      }, 1000);
     },
-    [onActivity, getDevicePixelRatio]
+    [mergedProps]
   );
 
   // Set up event listeners
@@ -107,13 +150,8 @@ export function usePanZoom(elementRef: React.RefObject<HTMLElement | null>, onAc
 
   // Reset function to clear state
   const resetInteractionState = useCallback(() => {
-    setInteractionState({
-      isDragging: false,
-      dragOffset: { x: 0, y: 0 },
-      wheelDelta: { x: 0, y: 0 },
-      pointerPosition: { x: 0, y: 0 },
-    });
-    setDragStart(null);
+    setInteractionState(initialInteractionState);
+    dragStartRef.current = null;
   }, []);
 
   return {

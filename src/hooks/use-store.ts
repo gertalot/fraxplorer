@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type FractalParams = {
+export type FractalParams = {
   center: { x: number; y: number };
   zoom: number;
   maxIterations: number;
@@ -34,7 +34,6 @@ export const useFractalStore = create<State & Actions>()(
       colorScheme: initialState.colorScheme,
       setParams: (params: Partial<FractalParams>) =>
         set((state) => {
-          console.log(`useFractalStore.setParams(${JSON.stringify(params)})`);
           return {
             params: { ...state.params, ...params },
           };
@@ -45,3 +44,5 @@ export const useFractalStore = create<State & Actions>()(
     { name: "fractalwonder-store" }
   )
 );
+
+export const getFractalParamState = useFractalStore.getState;
